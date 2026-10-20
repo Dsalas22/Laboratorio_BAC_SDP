@@ -188,3 +188,4 @@ Laboratorio_BAC_SDP/
 - [docs/QUICKSTART.md](docs/QUICKSTART.md): inicio rápido
 - [docs/STRUCTURE.md](docs/STRUCTURE.md): mapa del repositorio
 - [docs/DATABRICKS_REPO_GITHUB.md](docs/DATABRICKS_REPO_GITHUB.md): conexión de Databricks con GitHub
+
