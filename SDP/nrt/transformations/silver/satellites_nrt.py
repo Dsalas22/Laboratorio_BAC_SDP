@@ -5,7 +5,9 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # --- Parámetros dinámicos del pipeline ---
-SUFFIX = spark.conf.get("pipelines.suffix", "dsh")
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
 RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
 SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
 
@@ -15,7 +17,7 @@ SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.
     comment="Satélite de clientes NRT — atributos descriptivos",
 )
 @dp.expect_or_fail("hk_no_nulo", "customer_hk IS NOT NULL")
-def nrt_sat_clientes_dsh():
+def nrt_sat_clientes():
     return (
         spark.readStream.table(f"{RAW}.cumst")
         .select(
@@ -38,7 +40,7 @@ def nrt_sat_clientes_dsh():
     comment="Satélite de préstamos NRT — atributos de producto",
 )
 @dp.expect_or_fail("hk_no_nulo", "deal_hk IS NOT NULL")
-def nrt_sat_prestamos_dsh():
+def nrt_sat_prestamos():
     return (
         spark.readStream.table(f"{RAW}.deal")
         .select(
@@ -64,7 +66,7 @@ def nrt_sat_prestamos_dsh():
 )
 @dp.expect_or_fail("hk_no_nulo", "trx_hk IS NOT NULL")
 @dp.expect("monto_positivo", "traamt > 0")
-def nrt_sat_transacciones_dsh():
+def nrt_sat_transacciones():
     return (
         spark.readStream.table(f"{RAW}.trans")
         .select(

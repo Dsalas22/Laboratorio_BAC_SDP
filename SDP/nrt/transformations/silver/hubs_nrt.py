@@ -5,7 +5,9 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # --- Parámetros dinámicos del pipeline ---
-SUFFIX = spark.conf.get("pipelines.suffix", "dsh")
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
 RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
 SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
 
@@ -15,7 +17,7 @@ SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.
     comment="Hub de clientes NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "customer_bk IS NOT NULL")
-def nrt_hub_clientes_dsh():
+def nrt_hub_clientes():
     return (
         spark.readStream.table(f"{RAW}.cumst")
         .select(
@@ -33,7 +35,7 @@ def nrt_hub_clientes_dsh():
     comment="Hub de préstamos NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "deal_bk IS NOT NULL")
-def nrt_hub_prestamos_dsh():
+def nrt_hub_prestamos():
     return (
         spark.readStream.table(f"{RAW}.deal")
         .select(
@@ -51,7 +53,7 @@ def nrt_hub_prestamos_dsh():
     comment="Hub de transacciones NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "trx_bk IS NOT NULL")
-def nrt_hub_transacciones_dsh():
+def nrt_hub_transacciones():
     return (
         spark.readStream.table(f"{RAW}.trans")
         .select(

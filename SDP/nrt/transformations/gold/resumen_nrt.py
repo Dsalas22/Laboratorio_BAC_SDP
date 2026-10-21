@@ -5,7 +5,9 @@ from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
 # --- Parámetros dinámicos del pipeline ---
-SUFFIX = spark.conf.get("pipelines.suffix", "dsh")
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
 SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
 GOLD = spark.conf.get("pipelines.gold_catalog", "ods") + "." + spark.conf.get("pipelines.gold_schema", "gold")
 
@@ -14,7 +16,7 @@ GOLD = spark.conf.get("pipelines.gold_catalog", "ods") + "." + spark.conf.get("p
     name=f"{GOLD}.nrt_resumen_clientes_{SUFFIX}",
     comment="Resumen NRT de clientes por país y estado",
 )
-def nrt_resumen_clientes_dsh():
+def nrt_resumen_clientes():
     return (
         spark.read.table(f"{SILVER}.nrt_sat_clientes_{SUFFIX}")
         .groupBy("country", "status")
@@ -29,7 +31,7 @@ def nrt_resumen_clientes_dsh():
     name=f"{GOLD}.nrt_resumen_prestamos_{SUFFIX}",
     comment="Resumen NRT de préstamos por moneda y estado",
 )
-def nrt_resumen_prestamos_dsh():
+def nrt_resumen_prestamos():
     return (
         spark.read.table(f"{SILVER}.nrt_sat_prestamos_{SUFFIX}")
         .groupBy("currency", "status")
@@ -45,7 +47,7 @@ def nrt_resumen_prestamos_dsh():
     name=f"{GOLD}.nrt_resumen_transacciones_{SUFFIX}",
     comment="Resumen NRT de transacciones por mes, código, tipo y moneda",
 )
-def nrt_resumen_transacciones_dsh():
+def nrt_resumen_transacciones():
     return (
         spark.read.table(f"{SILVER}.nrt_sat_transacciones_{SUFFIX}")
         .withColumn("transaction_month", F.date_format("travdm", "yyyy-MM"))
@@ -62,7 +64,7 @@ def nrt_resumen_transacciones_dsh():
     name=f"{GOLD}.nrt_kpi_general_{SUFFIX}",
     comment="KPIs NRT mensuales generales",
 )
-def nrt_kpi_general_dsh():
+def nrt_kpi_general():
     return (
         spark.read.table(f"{GOLD}.nrt_resumen_transacciones_{SUFFIX}")
         .groupBy("transaction_month")

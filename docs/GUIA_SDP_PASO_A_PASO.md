@@ -163,6 +163,19 @@ ORDER BY ingest_ts;
    - **Photon**: activado
 3. Haz clic en **Create**
 4. Databricks crea una carpeta con `transformations/` — ahí van tus archivos Python
+5. Ve a **Settings → Configuration** (o *Pipeline settings → Advanced → Configuration*) y agrega estos 7 parámetros:
+
+| Clave | Valor | Para qué sirve |
+|---|---|---|
+| `pipelines.suffix` | **tus iniciales** (ej. `dsh`) | Se agrega al final de **todas** tus tablas |
+| `pipelines.raw_catalog` | `raw_data` | Catálogo Bronze (compartido) |
+| `pipelines.raw_schema` | `bronze` | Esquema Bronze |
+| `pipelines.silver_catalog` | `data_vault` | Catálogo Silver |
+| `pipelines.silver_schema` | `plata` | Esquema Silver |
+| `pipelines.gold_catalog` | `ods` | Catálogo Gold |
+| `pipelines.gold_schema` | `gold` | Esquema Gold |
+
+> ⚠️ **El sufijo debe ser único.** Usa la primera letra de tu nombre y de tus dos apellidos, en minúscula y sin tildes: Danny Salas Hernández → `dsh`, María López García → `mlg`. Si dos personas usan el mismo sufijo, sus pipelines chocan por las mismas tablas. Si olvidas configurarlo, el pipeline se detiene con el mensaje *"Configura pipelines.suffix con tus iniciales"*.
 
 > **¿Qué acaba de pasar?** Creaste un pipeline vacío. El pipeline tiene un catálogo default (`data_vault`) pero puedes publicar tablas en **cualquier catálogo** usando nombres fully-qualified como `ods.gold.mi_tabla`.
 
@@ -172,11 +185,29 @@ Es el nombre completo de una tabla: `catalogo.schema.tabla`. Ejemplo:
 
 ```
 data_vault.plata.hub_clientes_dsh
-│            │         │
+│            │         │       │
+│            │         │       └─ Tu sufijo (iniciales)
 │            │         └─ Nombre de la tabla
 │            └─ Esquema (schema)
 └─ Catálogo
 ```
+
+En el código **no escribes** `dsh` a mano: el nombre se arma con los parámetros del pipeline:
+
+```python
+SUFFIX = spark.conf.get("pipelines.suffix", "")          # "dsh"
+SILVER = "data_vault" + "." + "plata"                     # desde pipelines.silver_catalog / silver_schema
+name = f"{SILVER}.hub_prestamos_{SUFFIX}"                 # "data_vault.plata.hub_prestamos_dsh"
+```
+
+| Ingeniero | `pipelines.suffix` | Tabla que crea |
+|---|---|---|
+| Danny Salas Hernández | `dsh` | `data_vault.plata.hub_prestamos_dsh` |
+| María López García | `mlg` | `data_vault.plata.hub_prestamos_mlg` |
+
+Así cada quien tiene **sus propias tablas** y nadie pisa las de un compañero. Todos leen el **mismo** Bronze (`raw_data.bronze`), que no tiene sufijo.
+
+> En esta guía los ejemplos de tablas y consultas SQL usan `dsh`. **Cámbialo por tus iniciales** cuando consultes tus tablas.
 
 ## Paso 3 — Crear la estructura de archivos ⏱️ 5 min
 
@@ -216,15 +247,22 @@ Este archivo crea los 3 **hubs** del Data Vault: la tabla con la identidad únic
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.materialized_view(
-    name="data_vault.plata.hub_clientes_dsh",
+    name=f"{SILVER}.hub_clientes_{SUFFIX}",
     comment="Hub de clientes — business key deduplicada",
 )
 @dp.expect_or_fail("pk_no_nulo", "customer_bk IS NOT NULL")
-def hub_clientes_dsh():
+def hub_clientes():
     return (
-        spark.read.table("raw_data.bronze.cumst")
+        spark.read.table(f"{RAW}.cumst")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.col("customer_id").alias("customer_bk"),
@@ -236,13 +274,13 @@ def hub_clientes_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.hub_prestamos_dsh",
+    name=f"{SILVER}.hub_prestamos_{SUFFIX}",
     comment="Hub de préstamos — business key deduplicada",
 )
 @dp.expect_or_fail("pk_no_nulo", "deal_bk IS NOT NULL")
-def hub_prestamos_dsh():
+def hub_prestamos():
     return (
-        spark.read.table("raw_data.bronze.deal")
+        spark.read.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.col("deal_id").alias("deal_bk"),
@@ -254,13 +292,13 @@ def hub_prestamos_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.hub_transacciones_dsh",
+    name=f"{SILVER}.hub_transacciones_{SUFFIX}",
     comment="Hub de transacciones — business key deduplicada",
 )
 @dp.expect_or_fail("pk_no_nulo", "trx_bk IS NOT NULL")
-def hub_transacciones_dsh():
+def hub_transacciones():
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
             F.col("trx_id").alias("trx_bk"),
@@ -277,11 +315,14 @@ def hub_transacciones_dsh():
 |---|---|---|
 | `from pyspark import pipelines as dp` | Importa el framework SDP | Necesario en **todo** archivo `.py` del pipeline |
 | `from pyspark.sql import functions as F` | Importa funciones SQL de Spark | Para `sha2`, `col`, `lit`, `current_timestamp` |
-| `@dp.materialized_view(name="...")` | Declara una tabla MV | Se recalcula completa en cada ejecución |
-| `name="data_vault.plata.hub_clientes_dsh"` | Nombre fully-qualified | Publica en catálogo `data_vault`, esquema `plata` |
+| `SUFFIX = spark.conf.get("pipelines.suffix", "")` | Lee tus iniciales de la configuración del pipeline | Cada ingeniero tiene sus propias tablas |
+| `if not SUFFIX.isalnum(): raise ...` | Valida que el sufijo exista | Evita crear tablas sin sufijo o con el de otra persona |
+| `RAW = ...` / `SILVER = ...` | Arma `catalogo.esquema` desde la configuración | Cambiar de catálogo sin tocar código |
+| `@dp.materialized_view(name=...)` | Declara una tabla MV | Se recalcula completa en cada ejecución |
+| `name=f"{SILVER}.hub_clientes_{SUFFIX}"` | Nombre fully-qualified con f-string | Con `dsh` queda `data_vault.plata.hub_clientes_dsh` |
 | `comment="..."` | Descripción en Unity Catalog | Aparece en el explorador de datos |
 | `@dp.expect_or_fail("pk_no_nulo", ...)` | Expectation crítica | Si algún registro tiene BK nula → **falla el pipeline** |
-| `spark.read.table("raw_data.bronze.cumst")` | Lee tabla Bronze completa | `spark.read` = lectura batch (todo de una vez) |
+| `spark.read.table(f"{RAW}.cumst")` | Lee tabla Bronze completa | `spark.read` = lectura batch (todo de una vez) |
 | `F.sha2(F.col("customer_id"), 256)` | Genera hash SHA-256 | Hash key estándar de Data Vault |
 | `.alias("customer_hk")` | Renombra la columna | `hk` = hash key (convención Data Vault) |
 | `F.col("customer_id").alias("customer_bk")` | Copia la business key | `bk` = business key (el valor original) |
@@ -306,15 +347,22 @@ Los satélites guardan los **atributos descriptivos** de cada entidad, vinculado
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.materialized_view(
-    name="data_vault.plata.sat_clientes_dsh",
+    name=f"{SILVER}.sat_clientes_{SUFFIX}",
     comment="Satélite de clientes — atributos descriptivos",
 )
 @dp.expect_or_fail("hk_no_nulo", "customer_hk IS NOT NULL")
-def sat_clientes_dsh():
+def sat_clientes():
     return (
-        spark.read.table("raw_data.bronze.cumst")
+        spark.read.table(f"{RAW}.cumst")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -331,13 +379,13 @@ def sat_clientes_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.sat_prestamos_dsh",
+    name=f"{SILVER}.sat_prestamos_{SUFFIX}",
     comment="Satélite de préstamos — atributos de producto",
 )
 @dp.expect_or_fail("hk_no_nulo", "deal_hk IS NOT NULL")
-def sat_prestamos_dsh():
+def sat_prestamos():
     return (
-        spark.read.table("raw_data.bronze.deal")
+        spark.read.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -356,14 +404,14 @@ def sat_prestamos_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.sat_transacciones_dsh",
+    name=f"{SILVER}.sat_transacciones_{SUFFIX}",
     comment="Satélite de transacciones — detalle transaccional",
 )
 @dp.expect_or_fail("hk_no_nulo", "trx_hk IS NOT NULL")
 @dp.expect("monto_positivo", "traamt > 0")
-def sat_transacciones_dsh():
+def sat_transacciones():
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -406,14 +454,21 @@ Los links modelan **relaciones entre entidades**, deduplicadas por par de hash k
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.materialized_view(
-    name="data_vault.plata.link_clientes_prestamos_dsh",
+    name=f"{SILVER}.link_clientes_prestamos_{SUFFIX}",
     comment="Link entre clientes y préstamos",
 )
-def link_clientes_prestamos_dsh():
+def link_clientes_prestamos():
     return (
-        spark.read.table("raw_data.bronze.deal")
+        spark.read.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
@@ -425,12 +480,12 @@ def link_clientes_prestamos_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.link_prestamos_transacciones_dsh",
+    name=f"{SILVER}.link_prestamos_transacciones_{SUFFIX}",
     comment="Link entre préstamos y transacciones",
 )
-def link_prestamos_transacciones_dsh():
+def link_prestamos_transacciones():
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
@@ -442,12 +497,12 @@ def link_prestamos_transacciones_dsh():
 
 
 @dp.materialized_view(
-    name="data_vault.plata.link_clientes_transacciones_dsh",
+    name=f"{SILVER}.link_clientes_transacciones_{SUFFIX}",
     comment="Link entre clientes y transacciones",
 )
-def link_clientes_transacciones_dsh():
+def link_clientes_transacciones():
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
@@ -486,16 +541,19 @@ Este archivo crea **MVs privadas** que validan que las foreign keys de `trans` e
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetro dinámico del pipeline ---
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+
 
 @dp.materialized_view(private=True)
 @dp.expect_or_fail("fk_trans_customer_valida", "tiene_cliente")
 def fk_trans_customer_check():
-    # Verifica que todo customer_id en trans exista en cumst.
+    """Verifica que todo customer_id en trans exista en cumst."""
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .where("customer_id IS NOT NULL")
         .join(
-            spark.read.table("raw_data.bronze.cumst"),
+            spark.read.table(f"{RAW}.cumst"),
             "customer_id",
             "left_anti",
         )
@@ -506,12 +564,12 @@ def fk_trans_customer_check():
 @dp.materialized_view(private=True)
 @dp.expect_or_fail("fk_trans_deal_valida", "tiene_prestamo")
 def fk_trans_deal_check():
-    # Verifica que todo deal_id en trans exista en deal.
+    """Verifica que todo deal_id en trans exista en deal."""
     return (
-        spark.read.table("raw_data.bronze.trans")
+        spark.read.table(f"{RAW}.trans")
         .where("deal_id IS NOT NULL")
         .join(
-            spark.read.table("raw_data.bronze.deal"),
+            spark.read.table(f"{RAW}.deal"),
             "deal_id",
             "left_anti",
         )
@@ -566,14 +624,21 @@ Gold contiene **tablas analíticas** derivadas del Data Vault Silver. Son agrega
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+GOLD = spark.conf.get("pipelines.gold_catalog", "ods") + "." + spark.conf.get("pipelines.gold_schema", "gold")
+
 
 @dp.materialized_view(
-    name="ods.gold.resumen_clientes_dsh",
+    name=f"{GOLD}.resumen_clientes_{SUFFIX}",
     comment="Resumen de clientes por país y estado",
 )
-def resumen_clientes_dsh():
+def resumen_clientes():
     return (
-        spark.read.table("data_vault.plata.sat_clientes_dsh")
+        spark.read.table(f"{SILVER}.sat_clientes_{SUFFIX}")
         .groupBy("country", "status")
         .agg(
             F.count("*").alias("customer_count"),
@@ -583,12 +648,12 @@ def resumen_clientes_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.resumen_prestamos_dsh",
+    name=f"{GOLD}.resumen_prestamos_{SUFFIX}",
     comment="Resumen de préstamos por moneda y estado",
 )
-def resumen_prestamos_dsh():
+def resumen_prestamos():
     return (
-        spark.read.table("data_vault.plata.sat_prestamos_dsh")
+        spark.read.table(f"{SILVER}.sat_prestamos_{SUFFIX}")
         .groupBy("currency", "status")
         .agg(
             F.count("*").alias("deal_count"),
@@ -599,12 +664,12 @@ def resumen_prestamos_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.resumen_transacciones_dsh",
+    name=f"{GOLD}.resumen_transacciones_{SUFFIX}",
     comment="Resumen de transacciones por mes, código, tipo y moneda",
 )
-def resumen_transacciones_dsh():
+def resumen_transacciones():
     return (
-        spark.read.table("data_vault.plata.sat_transacciones_dsh")
+        spark.read.table(f"{SILVER}.sat_transacciones_{SUFFIX}")
         .withColumn("transaction_month", F.date_format("travdm", "yyyy-MM"))
         .groupBy("transaction_month", "tracde", "tradcc", "traccy")
         .agg(
@@ -616,12 +681,12 @@ def resumen_transacciones_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.kpi_general_dsh",
+    name=f"{GOLD}.kpi_general_{SUFFIX}",
     comment="KPIs mensuales generales derivados de transacciones",
 )
-def kpi_general_dsh():
+def kpi_general():
     return (
-        spark.read.table("ods.gold.resumen_transacciones_dsh")
+        spark.read.table(f"{GOLD}.resumen_transacciones_{SUFFIX}")
         .groupBy("transaction_month")
         .agg(
             F.sum("transaction_count").alias("monthly_transactions"),
@@ -717,6 +782,7 @@ Nota que Silver publica en `data_vault.plata.*` y Gold publica en `ods.gold.*`. 
 Abre un notebook o SQL editor y ejecuta estas consultas:
 
 ```sql
+-- Reemplaza dsh por tus iniciales en todas las consultas
 -- Silver: verificar un hub (debe tener hash key + business key)
 SELECT * FROM data_vault.plata.hub_clientes_dsh LIMIT 5;
 
@@ -767,7 +833,8 @@ La diferencia es mínima en código, pero enorme en comportamiento:
 1. **Pipelines** → **Create pipeline**
 2. Nombre: `SDP_NRT_Laboratorio_dsh` (cambia `dsh` por tus iniciales)
 3. Catalog: `data_vault`, Serverless: on, Photon: on
-4. Crea la estructura:
+4. En **Settings → Configuration** agrega los **mismos 7 parámetros del Paso 2**, con **tu mismo sufijo**. Las tablas NRT llevan el prefijo `nrt_`, así que no chocan con las de tu pipeline Batch.
+5. Crea la estructura:
 
 ```
 transformations/
@@ -792,15 +859,22 @@ transformations/
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.table(
-    name="data_vault.plata.nrt_hub_clientes_dsh",
+    name=f"{SILVER}.nrt_hub_clientes_{SUFFIX}",
     comment="Hub de clientes NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "customer_bk IS NOT NULL")
-def nrt_hub_clientes_dsh():
+def nrt_hub_clientes():
     return (
-        spark.readStream.table("raw_data.bronze.cumst")
+        spark.readStream.table(f"{RAW}.cumst")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.col("customer_id").alias("customer_bk"),
@@ -812,13 +886,13 @@ def nrt_hub_clientes_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_hub_prestamos_dsh",
+    name=f"{SILVER}.nrt_hub_prestamos_{SUFFIX}",
     comment="Hub de préstamos NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "deal_bk IS NOT NULL")
-def nrt_hub_prestamos_dsh():
+def nrt_hub_prestamos():
     return (
-        spark.readStream.table("raw_data.bronze.deal")
+        spark.readStream.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.col("deal_id").alias("deal_bk"),
@@ -830,13 +904,13 @@ def nrt_hub_prestamos_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_hub_transacciones_dsh",
+    name=f"{SILVER}.nrt_hub_transacciones_{SUFFIX}",
     comment="Hub de transacciones NRT — streaming incremental",
 )
 @dp.expect_or_fail("pk_no_nulo", "trx_bk IS NOT NULL")
-def nrt_hub_transacciones_dsh():
+def nrt_hub_transacciones():
     return (
-        spark.readStream.table("raw_data.bronze.trans")
+        spark.readStream.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
             F.col("trx_id").alias("trx_bk"),
@@ -877,15 +951,22 @@ Compara con `hubs.py` (Paso 4) — solo hay **3 diferencias**:
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.table(
-    name="data_vault.plata.nrt_sat_clientes_dsh",
+    name=f"{SILVER}.nrt_sat_clientes_{SUFFIX}",
     comment="Satélite de clientes NRT — atributos descriptivos",
 )
 @dp.expect_or_fail("hk_no_nulo", "customer_hk IS NOT NULL")
-def nrt_sat_clientes_dsh():
+def nrt_sat_clientes():
     return (
-        spark.readStream.table("raw_data.bronze.cumst")
+        spark.readStream.table(f"{RAW}.cumst")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -902,13 +983,13 @@ def nrt_sat_clientes_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_sat_prestamos_dsh",
+    name=f"{SILVER}.nrt_sat_prestamos_{SUFFIX}",
     comment="Satélite de préstamos NRT — atributos de producto",
 )
 @dp.expect_or_fail("hk_no_nulo", "deal_hk IS NOT NULL")
-def nrt_sat_prestamos_dsh():
+def nrt_sat_prestamos():
     return (
-        spark.readStream.table("raw_data.bronze.deal")
+        spark.readStream.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -927,14 +1008,14 @@ def nrt_sat_prestamos_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_sat_transacciones_dsh",
+    name=f"{SILVER}.nrt_sat_transacciones_{SUFFIX}",
     comment="Satélite de transacciones NRT — detalle transaccional",
 )
 @dp.expect_or_fail("hk_no_nulo", "trx_hk IS NOT NULL")
 @dp.expect("monto_positivo", "traamt > 0")
-def nrt_sat_transacciones_dsh():
+def nrt_sat_transacciones():
     return (
-        spark.readStream.table("raw_data.bronze.trans")
+        spark.readStream.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
             F.current_timestamp().alias("load_ts"),
@@ -962,14 +1043,21 @@ def nrt_sat_transacciones_dsh():
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+
 
 @dp.table(
-    name="data_vault.plata.nrt_link_clientes_prestamos_dsh",
+    name=f"{SILVER}.nrt_link_clientes_prestamos_{SUFFIX}",
     comment="Link NRT entre clientes y préstamos",
 )
-def nrt_link_clientes_prestamos_dsh():
+def nrt_link_clientes_prestamos():
     return (
-        spark.readStream.table("raw_data.bronze.deal")
+        spark.readStream.table(f"{RAW}.deal")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
@@ -981,12 +1069,12 @@ def nrt_link_clientes_prestamos_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_link_prestamos_transacciones_dsh",
+    name=f"{SILVER}.nrt_link_prestamos_transacciones_{SUFFIX}",
     comment="Link NRT entre préstamos y transacciones",
 )
-def nrt_link_prestamos_transacciones_dsh():
+def nrt_link_prestamos_transacciones():
     return (
-        spark.readStream.table("raw_data.bronze.trans")
+        spark.readStream.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("deal_id"), 256).alias("deal_hk"),
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
@@ -998,12 +1086,12 @@ def nrt_link_prestamos_transacciones_dsh():
 
 
 @dp.table(
-    name="data_vault.plata.nrt_link_clientes_transacciones_dsh",
+    name=f"{SILVER}.nrt_link_clientes_transacciones_{SUFFIX}",
     comment="Link NRT entre clientes y transacciones",
 )
-def nrt_link_clientes_transacciones_dsh():
+def nrt_link_clientes_transacciones():
     return (
-        spark.readStream.table("raw_data.bronze.trans")
+        spark.readStream.table(f"{RAW}.trans")
         .select(
             F.sha2(F.col("customer_id"), 256).alias("customer_hk"),
             F.sha2(F.col("trx_id"), 256).alias("trx_hk"),
@@ -1027,14 +1115,21 @@ Gold **sigue siendo Materialized View** en NRT. Las agregaciones necesitan ver e
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+# --- Parámetros dinámicos del pipeline ---
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # tus iniciales, ej. dsh = Danny Salas Hernández
+if not SUFFIX.isalnum():
+    raise ValueError("Configura pipelines.suffix con tus iniciales (ej. dsh) en Settings → Configuration del pipeline")
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+GOLD = spark.conf.get("pipelines.gold_catalog", "ods") + "." + spark.conf.get("pipelines.gold_schema", "gold")
+
 
 @dp.materialized_view(
-    name="ods.gold.nrt_resumen_clientes_dsh",
+    name=f"{GOLD}.nrt_resumen_clientes_{SUFFIX}",
     comment="Resumen NRT de clientes por país y estado",
 )
-def nrt_resumen_clientes_dsh():
+def nrt_resumen_clientes():
     return (
-        spark.read.table("data_vault.plata.nrt_sat_clientes_dsh")
+        spark.read.table(f"{SILVER}.nrt_sat_clientes_{SUFFIX}")
         .groupBy("country", "status")
         .agg(
             F.count("*").alias("customer_count"),
@@ -1044,12 +1139,12 @@ def nrt_resumen_clientes_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.nrt_resumen_prestamos_dsh",
+    name=f"{GOLD}.nrt_resumen_prestamos_{SUFFIX}",
     comment="Resumen NRT de préstamos por moneda y estado",
 )
-def nrt_resumen_prestamos_dsh():
+def nrt_resumen_prestamos():
     return (
-        spark.read.table("data_vault.plata.nrt_sat_prestamos_dsh")
+        spark.read.table(f"{SILVER}.nrt_sat_prestamos_{SUFFIX}")
         .groupBy("currency", "status")
         .agg(
             F.count("*").alias("deal_count"),
@@ -1060,12 +1155,12 @@ def nrt_resumen_prestamos_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.nrt_resumen_transacciones_dsh",
+    name=f"{GOLD}.nrt_resumen_transacciones_{SUFFIX}",
     comment="Resumen NRT de transacciones por mes, código, tipo y moneda",
 )
-def nrt_resumen_transacciones_dsh():
+def nrt_resumen_transacciones():
     return (
-        spark.read.table("data_vault.plata.nrt_sat_transacciones_dsh")
+        spark.read.table(f"{SILVER}.nrt_sat_transacciones_{SUFFIX}")
         .withColumn("transaction_month", F.date_format("travdm", "yyyy-MM"))
         .groupBy("transaction_month", "tracde", "tradcc", "traccy")
         .agg(
@@ -1077,12 +1172,12 @@ def nrt_resumen_transacciones_dsh():
 
 
 @dp.materialized_view(
-    name="ods.gold.nrt_kpi_general_dsh",
+    name=f"{GOLD}.nrt_kpi_general_{SUFFIX}",
     comment="KPIs NRT mensuales generales",
 )
-def nrt_kpi_general_dsh():
+def nrt_kpi_general():
     return (
-        spark.read.table("ods.gold.nrt_resumen_transacciones_dsh")
+        spark.read.table(f"{GOLD}.nrt_resumen_transacciones_{SUFFIX}")
         .groupBy("transaction_month")
         .agg(
             F.sum("transaction_count").alias("monthly_transactions"),
@@ -1141,6 +1236,7 @@ Para demostrar que NRT procesa solo datos nuevos:
 4. Verifica con SQL que los conteos crecieron:
 
 ```sql
+-- Reemplaza dsh por tus iniciales
 SELECT 'nrt_hub_clientes' AS tabla, COUNT(*) AS filas
 FROM data_vault.plata.nrt_hub_clientes_dsh            -- esperado: 550
 UNION ALL
@@ -1263,13 +1359,17 @@ Crea un nuevo archivo `transformations/gold/analisis_moneda.py` con una MV que m
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()
+SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + spark.conf.get("pipelines.silver_schema", "plata")
+GOLD = spark.conf.get("pipelines.gold_catalog", "ods") + "." + spark.conf.get("pipelines.gold_schema", "gold")
+
 @dp.materialized_view(
-    name="ods.gold.analisis_moneda_dsh",
+    name=f"{GOLD}.analisis_moneda_{SUFFIX}",
     comment="Balance por moneda y mes de apertura",
 )
-def analisis_moneda_dsh():
+def analisis_moneda():
     return (
-        spark.read.table("data_vault.plata.sat_prestamos_dsh")
+        spark.read.table(f"{SILVER}.sat_prestamos_{SUFFIX}")
         .withColumn("open_month", F.date_format("open_date", "yyyy-MM"))
         .groupBy("currency", "open_month")
         .agg(

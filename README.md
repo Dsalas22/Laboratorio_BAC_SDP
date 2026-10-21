@@ -111,7 +111,7 @@ Cada participante configura estos parámetros en **Settings → Configuration** 
 ### Cómo funciona en el código
 
 ```python
-SUFFIX = spark.conf.get("pipelines.suffix", "dsh")
+SUFFIX = spark.conf.get("pipelines.suffix", "").strip().lower()   # obligatorio: tus iniciales
 SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + \
          spark.conf.get("pipelines.silver_schema", "plata")
 
