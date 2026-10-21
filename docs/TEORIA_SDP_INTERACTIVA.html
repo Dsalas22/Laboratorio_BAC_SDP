@@ -256,14 +256,6 @@
     <div class="card"><div class="ico">🔁</div><h4>Lakeflow SDP</h4><p>Pipelines declarativos: describes las tablas y Databricks se encarga de orquestar, reintentar y validar.</p></div>
   </div>
 
-  <h3>El nombre de 3 niveles</h3>
-  <p>En Unity Catalog toda tabla tiene un nombre completo de tres partes. En el laboratorio:</p>
-  <table>
-    <tr><th>Capa</th><th>Catálogo</th><th>Esquema</th><th>Tabla</th><th class="mono">Nombre completo</th></tr>
-    <tr><td>Bronze</td><td>raw_data</td><td>bronze</td><td>cumst</td><td class="mono">raw_data.bronze.cumst</td></tr>
-    <tr><td>Silver</td><td>data_vault</td><td>plata</td><td>hub_clientes_dsh</td><td class="mono">data_vault.plata.hub_clientes_dsh</td></tr>
-    <tr><td>Gold</td><td>ods</td><td>gold</td><td>kpi_general_dsh</td><td class="mono">ods.gold.kpi_general_dsh</td></tr>
-  </table>
 </section>
 
 <!-- ========================= 2. MEDALLION ========================= -->
@@ -279,6 +271,15 @@
     <div class="layer gold" data-l="gold"><div class="t">🥇 Gold</div>Datos listos para negocio</div>
   </div>
   <div id="layerInfo" class="callout">Selecciona una capa para ver su descripción.</div>
+
+  <h3>El nombre de 3 niveles</h3>
+  <p>En Unity Catalog toda tabla tiene un nombre completo de tres partes. En el laboratorio:</p>
+  <table>
+    <tr><th>Capa</th><th>Catálogo</th><th>Esquema</th><th>Tabla</th><th class="mono">Nombre completo</th></tr>
+    <tr><td>Bronze</td><td>raw_data</td><td>bronze</td><td>cumst</td><td class="mono">raw_data.bronze.cumst</td></tr>
+    <tr><td>Silver</td><td>data_vault</td><td>plata</td><td>hub_clientes_dsh</td><td class="mono">data_vault.plata.hub_clientes_dsh</td></tr>
+    <tr><td>Gold</td><td>ods</td><td>gold</td><td>kpi_general_dsh</td><td class="mono">ods.gold.kpi_general_dsh</td></tr>
+  </table>
 </section>
 
 <!-- ========================= 3. UTILIDAD ========================= -->
