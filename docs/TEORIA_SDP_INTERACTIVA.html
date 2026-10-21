@@ -157,6 +157,39 @@
   footer{margin-left:250px;padding:30px 48px;color:var(--gray);font-size:13px;border-top:1px solid var(--line)}
   @media(max-width:760px){footer{margin-left:0}}
   .kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;font-size:12px;font-family:var(--mono)}
+  /* ===== Animaciones ===== */
+  .grad{background:linear-gradient(90deg,var(--orange),var(--yellow),var(--orange));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 4s linear infinite}
+  @keyframes shine{to{background-position:200% center}}
+  .hero h1{animation:slideUp .8s ease both} .hero .lead{animation:slideUp .8s .15s ease both}
+  .hero .badges .badge{animation:pop .5s ease both}
+  .hero .badges .badge:nth-child(2){animation-delay:.1s}.hero .badges .badge:nth-child(3){animation-delay:.2s}.hero .badges .badge:nth-child(4){animation-delay:.3s}.hero .badges .badge:nth-child(5){animation-delay:.4s}.hero .badges .badge:nth-child(6){animation-delay:.5s}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+  @keyframes pop{0%{opacity:0;transform:scale(.6)}80%{transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(7px)}}
+  @keyframes dash{to{stroke-dashoffset:-28}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12);background:var(--orange)}}
+  @keyframes revealUp{from{opacity:0;transform:translateY(26px)}}
+  .flow{position:relative;display:flex;justify-content:space-between;margin:26px 0 30px;padding:0 6px}
+  .flow .track{position:absolute;left:40px;right:40px;top:28px;height:4px;background:var(--line);border-radius:4px}
+  .flow .dot{position:absolute;top:28px;width:14px;height:14px;margin-top:-5px;border-radius:50%;box-shadow:0 0 10px rgba(255,54,33,.5);animation:travel 4s linear infinite;left:40px;opacity:0;z-index:1}
+  @keyframes travel{0%{left:40px;opacity:0;background:#9AA5AB}8%{opacity:1}30%{background:#C98A55}55%{background:#90A4AE}80%{background:#F5B700}92%{opacity:1}100%{left:calc(100% - 54px);opacity:0;background:#F5B700}}
+  .flow .st{position:relative;z-index:2;text-align:center;font-size:13px;font-weight:600;width:90px}
+  .flow .st small{font-weight:400;color:var(--gray)}
+  .flow .c{width:56px;height:56px;border-radius:50%;background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 6px;animation:float 3s ease-in-out infinite}
+  .flow .st:nth-of-type(2) .c{animation-delay:.4s}.flow .st:nth-of-type(3) .c{animation-delay:.8s}.flow .st:nth-of-type(4) .c{animation-delay:1.2s}.flow .st:nth-of-type(5) .c{animation-delay:1.6s}
+  .medal .arrow{animation:nudge 1.3s ease-in-out infinite}
+  path.flow-on{stroke-dasharray:10 4;animation:dash .7s linear infinite}
+  .row.slide{animation:slideIn .5s ease both}
+  .shake{animation:shake .5s ease}
+  .cp.pulse{animation:pulse .6s ease}
+  .opt.right{animation:pop .45s ease} .opt.wrong{animation:shake .45s ease}
+  .step.on{animation:pop .4s ease}
+  .reveal{opacity:0}
+  .reveal.in{opacity:1;animation:revealUp .7s ease backwards;animation-delay:calc(var(--i,0) * 90ms)}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}.reveal{opacity:1}}
 </style>
 </head>
 <body>
@@ -168,12 +201,13 @@
   <a href="#inicio"><span class="n">0</span>Inicio</a>
   <a href="#databricks"><span class="n">1</span>¿Qué es Databricks?</a>
   <a href="#medallion"><span class="n">2</span>Lakehouse y Medallion</a>
-  <a href="#datavault"><span class="n">3</span>Data Vault</a>
-  <a href="#streaming"><span class="n">4</span>Streaming</a>
-  <a href="#autoloader"><span class="n">5</span>Auto Loader</a>
-  <a href="#sdp"><span class="n">6</span>Teoría SDP</a>
-  <a href="#funciones"><span class="n">7</span>Funciones clave</a>
-  <a href="#transformaciones"><span class="n">8</span>Transformaciones y usos</a>
+  <a href="#utilidad"><span class="n">3</span>¿Para qué es útil?</a>
+  <a href="#datavault"><span class="n">4</span>Data Vault</a>
+  <a href="#streaming"><span class="n">5</span>Streaming</a>
+  <a href="#autoloader"><span class="n">6</span>Auto Loader</a>
+  <a href="#sdp"><span class="n">7</span>Teoría SDP</a>
+  <a href="#funciones"><span class="n">8</span>Funciones clave</a>
+  <a href="#transformaciones"><span class="n">9</span>Transformaciones y usos</a>
 </nav>
 
 <main>
@@ -181,11 +215,21 @@
 <!-- ========================= 0. INICIO ========================= -->
 <div class="hero" id="inicio">
   <span class="badge b-o">Laboratorio BAC · Ingeniería de Datos</span>
-  <h1>Spark Declarative Pipelines<br>y Data Vault, <span style="color:var(--orange)">explicados fácil</span></h1>
+  <h1>Spark Declarative Pipelines<br>y <span class="grad">Data Vault</span></h1>
   <p class="lead">Esta página resume la teoría que necesitas para el taller. Cada sección tiene ejemplos, simuladores que puedes tocar y preguntas cortas para comprobar lo aprendido. Lee en orden: cada tema usa conceptos del anterior.</p>
   <div class="badges">
     <span class="badge b-b">Databricks</span><span class="badge b-t">Delta Lake</span><span class="badge b-p">Data Vault 2.0</span>
     <span class="badge b-o">Structured Streaming</span><span class="badge b-b">Auto Loader</span><span class="badge b-t">SDP</span>
+  </div>
+  <div class="flow" aria-hidden="true">
+    <div class="track"></div>
+    <span class="dot" style="animation-delay:0s"></span><span class="dot" style="animation-delay:1s"></span>
+    <span class="dot" style="animation-delay:2s"></span><span class="dot" style="animation-delay:3s"></span>
+    <div class="st"><div class="c">🏦</div>Origen<br><small>AS400</small></div>
+    <div class="st"><div class="c" style="background:#F6E6D8">🥉</div>Bronze<br><small>crudo</small></div>
+    <div class="st"><div class="c" style="background:#ECEFF1">🥈</div>Silver<br><small>Data Vault</small></div>
+    <div class="st"><div class="c" style="background:#FFF4CC">🥇</div>Gold<br><small>KPIs</small></div>
+    <div class="st"><div class="c">📊</div>Negocio<br><small>dashboards</small></div>
   </div>
   <div class="grid g4">
     <div class="card"><div class="ico">🧭</div><h4>Navega</h4><p>Usa el menú de la izquierda. La barra naranja de arriba muestra tu avance.</p></div>
@@ -212,18 +256,6 @@
     <div class="card"><div class="ico">🔁</div><h4>Lakeflow SDP</h4><p>Pipelines declarativos: describes las tablas y Databricks se encarga de orquestar, reintentar y validar.</p></div>
   </div>
 
-  <h3>¿Para qué es útil?</h3>
-  <div class="tabs" data-tabs="uses">
-    <button class="tab active" data-t="u1">Ingeniería de datos</button>
-    <button class="tab" data-t="u2">Analítica / BI</button>
-    <button class="tab" data-t="u3">Machine Learning / IA</button>
-    <button class="tab" data-t="u4">Gobierno</button>
-  </div>
-  <div class="tabpane active" id="u1">Construir pipelines que llevan datos desde sistemas origen (por ejemplo AS400, bases de datos, archivos) hasta tablas limpias y confiables, en batch o casi en tiempo real. <b>Esto es lo que hacemos en el taller.</b></div>
-  <div class="tabpane" id="u2">Consultar las tablas Gold con SQL, crear dashboards y dar a negocio KPIs como “monto total transaccionado por mes”.</div>
-  <div class="tabpane" id="u3">Entrenar modelos (por ejemplo, riesgo de crédito o detección de fraude) usando las mismas tablas, con MLflow para rastrear experimentos.</div>
-  <div class="tabpane" id="u4">Saber quién accede a qué dato, de dónde viene cada tabla (linaje) y aplicar permisos por catálogo, esquema o columna.</div>
-
   <h3>El nombre de 3 niveles</h3>
   <p>En Unity Catalog toda tabla tiene un nombre completo de tres partes. En el laboratorio:</p>
   <table>
@@ -249,7 +281,23 @@
   <div id="layerInfo" class="callout">Selecciona una capa para ver su descripción.</div>
 </section>
 
-<!-- ========================= 3. DATA VAULT ========================= -->
+<!-- ========================= 3. UTILIDAD ========================= -->
+<section id="utilidad">
+  <h2>¿Para qué es útil Databricks?</h2>
+  <p class="lead">Ya con las capas Bronze, Silver y Gold claras, veamos qué equipos usan los datos y en qué capa trabajan. Todos usan las mismas tablas gobernadas, sin copiarlas a otros sistemas.</p>
+  <div class="tabs" data-tabs="uses">
+    <button class="tab active" data-t="u1">Ingeniería de datos</button>
+    <button class="tab" data-t="u2">Analítica / BI</button>
+    <button class="tab" data-t="u3">Machine Learning / IA</button>
+    <button class="tab" data-t="u4">Gobierno</button>
+  </div>
+  <div class="tabpane active" id="u1"><span class="badge b-o">Bronze → Silver → Gold</span><p>Construir pipelines que llevan datos desde sistemas origen (por ejemplo AS400, bases de datos, archivos) hasta tablas limpias y confiables, en batch o casi en tiempo real. <b>Esto es lo que hacemos en el taller.</b></p></div>
+  <div class="tabpane" id="u2"><span class="badge b-t">Gold</span><p>Consultar las tablas Gold con SQL, crear dashboards y dar a negocio KPIs como “monto total transaccionado por mes”.</p></div>
+  <div class="tabpane" id="u3"><span class="badge b-p">Silver y Gold</span><p>Entrenar modelos (por ejemplo, riesgo de crédito o detección de fraude) usando las mismas tablas, con MLflow para rastrear experimentos.</p></div>
+  <div class="tabpane" id="u4"><span class="badge b-b">Todas las capas</span><p>Saber quién accede a qué dato, de dónde viene cada tabla (linaje) y aplicar permisos por catálogo, esquema o columna con Unity Catalog.</p></div>
+</section>
+
+<!-- ========================= 4. DATA VAULT ========================= -->
 <section id="datavault">
   <h2>Data Vault <span class="tag">Modelado Silver</span></h2>
   <p class="lead"><b>Data Vault</b> es una forma de modelar datos pensada para guardar <i>toda la historia</i>, integrar muchos sistemas origen y crecer sin rehacer el modelo. Separa cada concepto de negocio en tres tipos de tabla: <b>Hubs</b>, <b>Satélites</b> y <b>Links</b>.</p>
@@ -329,7 +377,7 @@
   <details open><summary>Micro-batch</summary><div class="body">Spark no procesa fila por fila: agrupa lo que llegó en pequeños lotes (micro-batches) y los procesa uno tras otro. Por eso hablamos de <i>near real time</i> (casi tiempo real): segundos o minutos de latencia.</div></details>
   <details><summary>Checkpoint</summary><div class="body">Es una carpeta donde Spark guarda <b>hasta qué punto ya leyó</b> (el “offset”). Si el proceso se cae y se reinicia, continúa desde ahí sin perder ni duplicar datos. En SDP el checkpoint se administra automáticamente: no tienes que configurarlo.</div></details>
   <details><summary>Exactly-once (exactamente una vez)</summary><div class="body">Gracias al checkpoint y a las transacciones de Delta Lake, cada registro de la fuente se escribe una sola vez en el destino, aunque haya fallas.</div></details>
-  <details><summary>Fuente append-only</summary><div class="body">Streaming funciona mejor cuando la fuente solo <b>agrega</b> filas. Si en la fuente se actualizan o borran filas, el stream puede fallar. Para ese caso existen herramientas como <code>create_auto_cdc_flow</code> (sección 7).</div></details>
+  <details><summary>Fuente append-only</summary><div class="body">Streaming funciona mejor cuando la fuente solo <b>agrega</b> filas. Si en la fuente se actualizan o borran filas, el stream puede fallar. Para ese caso existen herramientas como <code>create_auto_cdc_flow</code> (sección 8).</div></details>
   <details><summary>Trigger: ¿cada cuánto se ejecuta?</summary><div class="body"><b>Continuo:</b> el proceso queda corriendo y toma datos apenas llegan.<br><b>Disparado (triggered):</b> se ejecuta, procesa todo lo pendiente y se detiene. Se puede programar con un Job (por ejemplo, cada 2 minutos). Nuestro pipeline NRT usa este modo.</div></details>
 
   <div class="lab">
@@ -430,7 +478,7 @@ hub.write.mode(<span class="s">"overwrite"</span>).saveAsTable(<span class="s">"
     <div class="callout tip" style="margin-bottom:0"><b>Resultado</b>Menos código, sin escribir <code>.write</code>, sin orden manual, y con métricas de calidad automáticas en la interfaz.</div>
   </div>
 
-  <h3>¿Qué te da SDP “gratis”?</h3>
+  <h3>¿Qué te da SDP automáticamente?</h3>
   <div class="grid g3">
     <div class="card"><div class="ico">🕸️</div><h4>Orden automático (DAG)</h4><p>Analiza qué tabla lee de cuál y arma el grafo de ejecución.</p></div>
     <div class="card"><div class="ico">✅</div><h4>Calidad de datos</h4><p>Expectations: reglas que registran, descartan o detienen según el caso.</p></div>
@@ -692,7 +740,7 @@ function drawLines(svgId,containerId,edges,activeSet){
     const mx=(x1+x2)/2;
     p.setAttribute('d',horiz?`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`:`M${x1},${y1} L${x2},${y2}`);
     const on=activeSet&&activeSet.has(a+'>'+b);
-    p.setAttribute('stroke',on?'#FF3621':'#C9D2D7'); p.setAttribute('stroke-width',on?3:2); p.setAttribute('fill','none');
+    p.setAttribute('stroke',on?'#FF3621':'#C9D2D7'); if(on)p.setAttribute('class','flow-on'); p.setAttribute('stroke-width',on?3:2); p.setAttribute('fill','none');
     svg.appendChild(p);
   });
 }
@@ -736,24 +784,24 @@ function decomp(k){
 }
 
 /* ---------- Streaming sim ---------- */
-let st={src:[],cp:0,dst:[],s:0,b:0,n:5000};
+let st={src:[],cp:0,dst:[],s:0,b:0,n:5000,last:0};
 function stRender(){
   document.getElementById('stSrc').innerHTML=st.src.map((r,i)=>`<div class="row ${i>=st.cp?'new':''}">${r}</div>`).join('')||'<i style="font-size:12px;color:#999">vacía</i>';
-  document.getElementById('stDst').innerHTML=st.dst.map(r=>`<div class="row ok">${r}</div>`).join('')||'<i style="font-size:12px;color:#999">vacía</i>';
+  document.getElementById('stDst').innerHTML=st.dst.map((r,i)=>{const k=i-(st.dst.length-st.last);return `<div class="row ok ${k>=0?'slide':''}" style="animation-delay:${Math.max(0,k)*140}ms">${r}</div>`;}).join('')||'<i style="font-size:12px;color:#999">vacía</i>';
   document.getElementById('stCp').innerHTML=`checkpoint<br>offset = ${st.cp}`;
   document.getElementById('stS').textContent=st.s; document.getElementById('stB').textContent=st.b;
 }
 function stLog(id,m){const l=document.getElementById(id);l.innerHTML+=`<div>&gt; ${m}</div>`;l.scrollTop=l.scrollHeight;}
-function stAdd(){for(let i=0;i<3;i++){st.n++;st.src.push(`T00${st.n} · ₡${(Math.random()*5000+100).toFixed(0)}`);}stLog('stLog','Llegaron 3 filas nuevas a Bronze (naranja = no procesadas).');stRender();}
+function stAdd(){st.last=0;for(let i=0;i<3;i++){st.n++;st.src.push(`T00${st.n} · ₡${(Math.random()*5000+100).toFixed(0)}`);}stLog('stLog','Llegaron 3 filas nuevas a Bronze (naranja = no procesadas).');stRender();}
 function stRun(){
   const nuevas=st.src.length-st.cp;
   st.b+=st.src.length;
   if(nuevas===0){stLog('stLog','Streaming: no hay filas nuevas, termina en segundos. Batch habría releído '+st.src.length+' filas.');stRender();return;}
-  st.dst.push(...st.src.slice(st.cp)); st.s+=nuevas;
+  st.dst.push(...st.src.slice(st.cp)); st.s+=nuevas; st.last=nuevas;
   stLog('stLog',`Streaming leyó ${nuevas} filas nuevas (offset ${st.cp} → ${st.src.length}). Batch habría leído ${st.src.length}.`);
-  st.cp=st.src.length; stRender();
+  st.cp=st.src.length; stRender(); pulse('stCp');
 }
-function stReset(){st={src:[],cp:0,dst:[],s:0,b:0,n:5000};document.getElementById('stLog').innerHTML='<div>&gt; Esperando datos...</div>';stRender();}
+function stReset(){st={src:[],cp:0,dst:[],s:0,b:0,n:5000,last:0};document.getElementById('stLog').innerHTML='<div>&gt; Esperando datos...</div>';stRender();}
 stRender();
 
 /* ---------- Auto Loader sim ---------- */
@@ -842,6 +890,19 @@ function exRun(m){
 /* ---------- Redibujar líneas ---------- */
 function redraw(){drawLines('dvSvg','dv',dvEdges,new Set());drawLines('dagSvg','dag',dagEdges,new Set());}
 window.addEventListener('load',redraw); window.addEventListener('resize',redraw);
+
+/* ---------- Animaciones ---------- */
+function pulse(id){const e=document.getElementById(id);e.classList.remove('pulse');void e.offsetWidth;e.classList.add('pulse');}
+const _exRun=exRun;
+exRun=function(m){_exRun(m);const out=document.getElementById('exOut');[...out.children].forEach((c,i)=>{c.classList.add(m==='fail'?'shake':'slide');c.style.animationDelay=(m==='fail'?0:i*120)+'ms';});};
+(function(){
+  document.querySelectorAll('.grid').forEach(g=>[...g.children].forEach((c,i)=>c.style.setProperty('--i',i)));
+  if(!('IntersectionObserver' in window)) return;
+  const els=document.querySelectorAll('section > h2, section > .lead, section > h3, .card, .lab, .quiz, section > table, .medal, .dv, .dag, .steps, section > details, section > .callout');
+  els.forEach(e=>e.classList.add('reveal'));
+  const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);if(en.target.matches('.dv,.dag'))setTimeout(redraw,800);}}),{threshold:.1});
+  els.forEach(e=>io.observe(e));
+})();
 </script>
 </body>
 </html>
