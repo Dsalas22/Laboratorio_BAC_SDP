@@ -122,7 +122,7 @@ SILVER = spark.conf.get("pipelines.silver_catalog", "data_vault") + "." + \
 
 ## Inicio Rápido
 
-1. Ejecuta `Batch/notebooks/01_bronze_generate_sdp` para generar los datos Bronze.
+1. **Instructor, antes del taller:** ejecuta `Batch/notebooks/01_bronze_generate_sdp` en modo `inicial` (Bronze queda en 500 / 500 / 1,500). Los ingenieros **no** lo ejecutan: Bronze es compartido.
 2. Sigue la guía completa en [docs/GUIA_SDP_PASO_A_PASO.md](docs/GUIA_SDP_PASO_A_PASO.md).
 3. Crea tu pipeline Batch, configura tus iniciales en `pipelines.suffix`.
 4. Escribe el código Silver y Gold (la guía tiene cada archivo paso a paso).
@@ -137,7 +137,7 @@ Laboratorio_BAC_SDP/
 ├── .gitignore
 ├── Batch/
 │   └── notebooks/
-│       └── 01_bronze_generate_sdp     ← Genera datos sintéticos en Bronze
+│       └── 01_bronze_generate_sdp     ← Generador Bronze (modo inicial / incremental)
 ├── SDP/                               ← Código fuente de los pipelines ★
 │   ├── batch/transformations/
 │   │   ├── silver/
@@ -155,7 +155,8 @@ Laboratorio_BAC_SDP/
 │       └── gold/
 │           └── resumen_nrt.py        ← 4 MVs sobre Streaming Tables
 └── docs/
-    ├── GUIA_SDP_PASO_A_PASO.md       ★ Guía principal (3+ horas)
+    ├── GUIA_SDP_PASO_A_PASO.md       ★ Guía principal (3 horas)
+    ├── Presentacion-Databricks-SDP-BAC.html ← Teoría interactiva
     ├── QUICKSTART.md                  ← Inicio rápido
     ├── STRUCTURE.md                   ← Mapa del repositorio
     └── DATABRICKS_REPO_GITHUB.md     ← Conexión Git
@@ -187,5 +188,15 @@ Laboratorio_BAC_SDP/
 - [docs/GUIA_SDP_PASO_A_PASO.md](docs/GUIA_SDP_PASO_A_PASO.md): guía paso a paso del taller SDP
 - [docs/QUICKSTART.md](docs/QUICKSTART.md): inicio rápido
 - [docs/STRUCTURE.md](docs/STRUCTURE.md): mapa del repositorio
+- [docs/Presentacion-Databricks-SDP-BAC.html](docs/Presentacion-Databricks-SDP-BAC.html): teoría interactiva (Databricks, Data Vault, Streaming, Auto Loader, SDP). En línea: https://dsalas22.github.io/Laboratorio_BAC_SDP/Presentacion-Databricks-SDP-BAC.html
 - [docs/DATABRICKS_REPO_GITHUB.md](docs/DATABRICKS_REPO_GITHUB.md): conexión de Databricks con GitHub
+
+## Generador Bronze y lotes incrementales
+
+| Modo | Escritura | Filas (cumst / deal / trans) | Quién y cuándo |
+|---|---|---|---|
+| `inicial` | overwrite | 500 / 500 / 1,500 | Instructor, antes del taller (después: full refresh de pipelines NRT existentes) |
+| `incremental` | append | 50 / 50 / 150 | Instructor en el Paso 18, o el Job `Lab_BAC_Bronze_Lote_Incremental` |
+
+El Job `Lab_BAC_Bronze_Lote_Incremental` ejecuta el modo incremental y luego actualiza el pipeline NRT del instructor. Su programación (cada 5 min) está **pausada**: activarla solo durante el bloque NRT.
 

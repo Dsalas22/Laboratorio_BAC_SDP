@@ -10,7 +10,7 @@ Laboratorio_BAC_SDP/
 ├── .gitignore
 ├── Batch/
 │   └── notebooks/
-│       └── 01_bronze_generate_sdp         ← Genera datos sintéticos en Bronze
+│       └── 01_bronze_generate_sdp         ← Generador Bronze (modo inicial / incremental)
 ├── SDP/                                   ← Código fuente de los pipelines ★
 │   ├── batch/transformations/             ← Pipeline Batch (5 archivos)
 │   │   ├── silver/
@@ -28,7 +28,8 @@ Laboratorio_BAC_SDP/
 │       └── gold/
 │           └── resumen_nrt.py             ← 4 MVs sobre Streaming Tables
 └── docs/
-    ├── GUIA_SDP_PASO_A_PASO.md            ★ Guía principal del taller (3+ horas)
+    ├── GUIA_SDP_PASO_A_PASO.md            ★ Guía principal del taller (3 horas)
+    ├── Presentacion-Databricks-SDP-BAC.html ← Teoría interactiva
     ├── QUICKSTART.md                      ← Inicio rápido
     ├── STRUCTURE.md                       ← Este archivo
     └── DATABRICKS_REPO_GITHUB.md          ← Conexión con GitHub

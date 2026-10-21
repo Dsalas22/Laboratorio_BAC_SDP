@@ -7,7 +7,7 @@ Guía rápida para poner en marcha el laboratorio.
 > **Esta es la ruta principal del laboratorio.** Duración estimada: 3 horas.
 
 1. Abre [docs/GUIA_SDP_PASO_A_PASO.md](GUIA_SDP_PASO_A_PASO.md) — es la guía paso a paso completa.
-2. Ejecuta `Batch/notebooks/01_bronze_generate_sdp` para generar los datos Bronze.
+2. Verifica Bronze (500 / 500 / 1,500). Lo genera **el instructor** con `Batch/notebooks/01_bronze_generate_sdp` en modo `inicial`; los ingenieros no lo ejecutan.
 3. Sigue la guía para crear y ejecutar ambos pipelines (Batch y NRT).
 
 ### Pipelines del laboratorio
@@ -32,7 +32,7 @@ Si prefieres aprender PySpark puro sin framework declarativo:
 
 ### Batch
 
-1. Abre `Batch/notebooks/01_bronze_generate_sdp` — genera datos sintéticos.
+1. Abre `Batch/notebooks/01_bronze_generate_sdp` — generador Bronze (modo `inicial` / `incremental`, solo instructor).
 2. Continúa con `Batch/notebooks/02_silver_datavault_sdp` — Data Vault manual.
 3. Finaliza con `Batch/notebooks/03_gold_sdp` — agregados Gold.
 
