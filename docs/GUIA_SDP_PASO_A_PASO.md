@@ -96,9 +96,9 @@ El **Data Vault** es un patrón de modelado diseñado para auditoría y trazabil
 
 | Entidad Bronze | Descripción | Filas | Columnas clave |
 |---|---|---:|---|
-| `raw_data.bronze.cumst` | Clientes | 550 | customer_id (PK), full_name, country, city, email, status |
-| `raw_data.bronze.deal` | Préstamos | 550 | deal_id (PK), customer_id (FK), product_code, principal_balance, currency |
-| `raw_data.bronze.trans` | Transacciones | 1,650 | trx_id (PK), customer_id (FK), deal_id (FK), traamt, travdm, traccy |
+| `raw_data.bronze.cumst` | Clientes | 500 | customer_id (PK), full_name, country, city, email, status |
+| `raw_data.bronze.deal` | Préstamos | 500 | deal_id (PK), customer_id (FK), product_code, principal_balance, currency |
+| `raw_data.bronze.trans` | Transacciones | 1,500 | trx_id (PK), customer_id (FK), deal_id (FK), traamt, travdm, traccy |
 
 > **Nota**: Cada cliente tiene 1 préstamo y 3 transacciones en los datos sintéticos.
 
@@ -108,7 +108,7 @@ El **Data Vault** es un patrón de modelado diseñado para auditoría y trazabil
 
 1. Acceso a un Databricks Workspace con Unity Catalog habilitado
 2. Permisos para crear catálogos y esquemas (o que ya existan `raw_data`, `data_vault`, `ods`)
-3. Las tablas Bronze ya generadas ejecutando `Batch/notebooks/01_bronze_generate_sdp`
+3. Las tablas Bronze generadas por el instructor con `Batch/notebooks/01_bronze_generate_sdp` en modo `inicial` (500 / 500 / 1,500)
 4. Serverless compute habilitado en el workspace
 
 ---
@@ -117,11 +117,14 @@ El **Data Vault** es un patrón de modelado diseñado para auditoría y trazabil
 
 > En esta parte construimos un pipeline que **recalcula todas las tablas** en cada ejecución usando Materialized Views.
 
-## Paso 1 — Generar los datos Bronze ⏱️ 10 min
+## Paso 1 — Revisar los datos Bronze ⏱️ 10 min
 
-1. Abre el notebook `Batch/notebooks/01_bronze_generate_sdp`
-2. Ejecuta todas las celdas para generar datos sintéticos
-3. Verifica que las tablas existan:
+> **Antes del taller (solo el instructor):** ejecutar `Batch/notebooks/01_bronze_generate_sdp` con `modo = inicial` y `multiplicador_espera = 0` (tarda ~1-2 min). Si ya existen pipelines NRT de pruebas anteriores, hacerles **Full refresh** después, porque el modo inicial reescribe Bronze.
+>
+> **Bronze es compartido.** Los ingenieros **no** ejecutan el notebook generador: si alguien lo corre en modo `inicial`, reescribe las tablas de todos y rompe los pipelines NRT del resto.
+
+1. Abre el notebook `Batch/notebooks/01_bronze_generate_sdp` y lee la primera celda: explica los modos `inicial` (reinicia, `overwrite`) e `incremental` (agrega un lote, `append`).
+2. Verifica las tablas:
 
 ```sql
 SELECT 'cumst' AS tabla, COUNT(*) AS filas FROM raw_data.bronze.cumst
@@ -135,11 +138,20 @@ Resultado esperado:
 
 | tabla | filas |
 |---|---:|
-| cumst | 550 |
-| deal | 550 |
-| trans | 1,650 |
+| cumst | 500 |
+| deal | 500 |
+| trans | 1,500 |
 
-> **¿Qué acaba de pasar?** Generaste datos sintéticos que simulan un sistema bancario (AS400) con clientes, préstamos y transacciones. Estos datos son la materia prima del pipeline.
+3. Mira los lotes cargados. Cada ejecución del generador tiene su propio `batch_id` (`INI-...` para inicial, `INC-...` para incremental):
+
+```sql
+SELECT batch_id, MIN(ingest_ts) AS ingest_ts, COUNT(*) AS filas
+FROM raw_data.bronze.trans
+GROUP BY batch_id
+ORDER BY ingest_ts;
+```
+
+> **¿Qué acaba de pasar?** Revisaste los datos sintéticos que simulan un sistema bancario (AS400): clientes, préstamos y transacciones. Son la materia prima de los pipelines. En el Paso 18 llegará un segundo lote para probar el procesamiento incremental.
 
 ## Paso 2 — Crear el pipeline en Databricks ⏱️ 5 min
 
@@ -682,15 +694,15 @@ Nota que Silver publica en `data_vault.plata.*` y Gold publica en `ods.gold.*`. 
 
 | Tabla | Filas | Destino | Expectations |
 |---|---:|---|---|
-| hub_clientes_dsh | 550 | data_vault.plata | pk_no_nulo: 550 pass |
-| hub_prestamos_dsh | 550 | data_vault.plata | pk_no_nulo: 550 pass |
-| hub_transacciones_dsh | 1,650 | data_vault.plata | pk_no_nulo: 1,650 pass |
-| sat_clientes_dsh | 550 | data_vault.plata | hk_no_nulo: 550 pass |
-| sat_prestamos_dsh | 550 | data_vault.plata | hk_no_nulo: 550 pass |
-| sat_transacciones_dsh | 1,650 | data_vault.plata | hk_no_nulo + monto_positivo |
-| link_clientes_prestamos_dsh | 550 | data_vault.plata | — |
-| link_prestamos_transacciones_dsh | 1,650 | data_vault.plata | — |
-| link_clientes_transacciones_dsh | 1,650 | data_vault.plata | — |
+| hub_clientes_dsh | 500 | data_vault.plata | pk_no_nulo: 500 pass |
+| hub_prestamos_dsh | 500 | data_vault.plata | pk_no_nulo: 500 pass |
+| hub_transacciones_dsh | 1,500 | data_vault.plata | pk_no_nulo: 1,500 pass |
+| sat_clientes_dsh | 500 | data_vault.plata | hk_no_nulo: 500 pass |
+| sat_prestamos_dsh | 500 | data_vault.plata | hk_no_nulo: 500 pass |
+| sat_transacciones_dsh | 1,500 | data_vault.plata | hk_no_nulo + monto_positivo |
+| link_clientes_prestamos_dsh | 500 | data_vault.plata | — |
+| link_prestamos_transacciones_dsh | 1,500 | data_vault.plata | — |
+| link_clientes_transacciones_dsh | 1,500 | data_vault.plata | — |
 | fk_trans_customer_check | 0 | **privada** | 0 rows → pass |
 | fk_trans_deal_check | 0 | **privada** | 0 rows → pass |
 | resumen_clientes_dsh | 6 | ods.gold | — |
@@ -1095,40 +1107,56 @@ Si usáramos `spark.readStream` en Gold, solo vería los datos nuevos desde la �
 
 | Tabla | Filas | Destino | Tipo |
 |---|---:|---|---|
-| nrt_hub_clientes_dsh | 550 | data_vault.plata | Streaming Table |
-| nrt_hub_prestamos_dsh | 550 | data_vault.plata | Streaming Table |
-| nrt_hub_transacciones_dsh | 1,650 | data_vault.plata | Streaming Table |
-| nrt_sat_clientes_dsh | 550 | data_vault.plata | Streaming Table |
-| nrt_sat_prestamos_dsh | 550 | data_vault.plata | Streaming Table |
-| nrt_sat_transacciones_dsh | 1,650 | data_vault.plata | Streaming Table |
-| nrt_link_clientes_prestamos_dsh | 550 | data_vault.plata | Streaming Table |
-| nrt_link_prestamos_transacciones_dsh | 1,650 | data_vault.plata | Streaming Table |
-| nrt_link_clientes_transacciones_dsh | 1,650 | data_vault.plata | Streaming Table |
+| nrt_hub_clientes_dsh | 500 | data_vault.plata | Streaming Table |
+| nrt_hub_prestamos_dsh | 500 | data_vault.plata | Streaming Table |
+| nrt_hub_transacciones_dsh | 1,500 | data_vault.plata | Streaming Table |
+| nrt_sat_clientes_dsh | 500 | data_vault.plata | Streaming Table |
+| nrt_sat_prestamos_dsh | 500 | data_vault.plata | Streaming Table |
+| nrt_sat_transacciones_dsh | 1,500 | data_vault.plata | Streaming Table |
+| nrt_link_clientes_prestamos_dsh | 500 | data_vault.plata | Streaming Table |
+| nrt_link_prestamos_transacciones_dsh | 1,500 | data_vault.plata | Streaming Table |
+| nrt_link_clientes_transacciones_dsh | 1,500 | data_vault.plata | Streaming Table |
 | nrt_resumen_clientes_dsh | 6 | ods.gold | Materialized View |
 | nrt_resumen_prestamos_dsh | 4 | ods.gold | Materialized View |
 | nrt_resumen_transacciones_dsh | 70 | ods.gold | Materialized View |
 | nrt_kpi_general_dsh | 5 | ods.gold | Materialized View |
 
 > **Total**: 13 datasets (9 Streaming Tables + 4 Materialized Views)
+>
+> Las filas de Gold son **grupos**, no registros. El número de meses (`kpi_general` = 5, `resumen_transacciones` = 70) puede variar un poco según la fecha en que se generó Bronze, porque `travdm` cubre los últimos 120 días.
 
 ## Paso 18 — Probar la incrementalidad ⏱️ 5 min
 
 Para demostrar que NRT procesa solo datos nuevos:
 
-1. **Agrega datos nuevos a Bronze** (ejecuta el notebook generador con un lote adicional)
-2. **Ejecuta el pipeline NRT de nuevo**
+1. **El instructor agrega un lote nuevo a Bronze.** Hay dos opciones:
+   - Ejecutar `Batch/notebooks/01_bronze_generate_sdp` con `modo = incremental` (agrega 50 clientes, 50 préstamos y 150 transacciones con IDs nuevos), o
+   - Abrir el Job **`Lab_BAC_Bronze_Lote_Incremental`** y presionar **Run now**.
+
+   Bronze pasa a **550 / 550 / 1,650**.
+2. **Cada ingeniero ejecuta su pipeline NRT** con **Start** (un update normal; **no** uses Full refresh, porque reprocesaría todo y no verías la diferencia).
 3. Observa en el grafo:
-   - Las **Streaming Tables** Silver procesaron solo los registros nuevos (no todo)
-   - Las **Materialized Views** Gold se recalcularon completas (con los datos actualizados)
+   - Las **Streaming Tables** Silver escribieron solo los registros nuevos: 50 en hubs, satélites y link de clientes/préstamos, y 150 en las de transacciones.
+   - Las **Materialized Views** Gold se recalcularon completas con los datos actualizados.
 4. Verifica con SQL que los conteos crecieron:
 
 ```sql
 SELECT 'nrt_hub_clientes' AS tabla, COUNT(*) AS filas
-FROM data_vault.plata.nrt_hub_clientes_dsh
+FROM data_vault.plata.nrt_hub_clientes_dsh            -- esperado: 550
 UNION ALL
-SELECT 'nrt_sat_clientes', COUNT(*)
-FROM data_vault.plata.nrt_sat_clientes_dsh;
+SELECT 'nrt_sat_transacciones', COUNT(*)
+FROM data_vault.plata.nrt_sat_transacciones_dsh;      -- esperado: 1,650
 ```
+
+5. Revisa que Gold cambió en **valores**, no en número de filas (siguen siendo 6 / 4 / 70 / 5 grupos), por ejemplo:
+
+```sql
+SELECT * FROM ods.gold.nrt_kpi_general_dsh ORDER BY transaction_month;
+```
+
+6. **Comparación:** ejecuta también el pipeline Batch. Sus Materialized Views vuelven a leer las 550 / 1,650 filas completas; las Streaming Tables del NRT solo leyeron las 250 filas nuevas.
+
+> **¿Qué acaba de pasar?** El checkpoint de cada Streaming Table recordaba hasta dónde había leído Bronze. Al llegar el lote nuevo, solo se procesó lo que faltaba. Eso es el procesamiento incremental.
 
 ---
 
@@ -1166,6 +1194,8 @@ FROM data_vault.plata.nrt_sat_clientes_dsh;
 | SDP_NRT_Laboratorio_dsh | `8699d709-da8c-4b1e-803a-dfa041210cdd` | Streaming Tables | Materialized Views | 13 |
 
 ## Inventario de tablas final
+
+> Conteos **después del Paso 18** (Bronze inicial + 1 lote incremental). Antes del Paso 18 son 500 / 1,500.
 
 ### Silver (data_vault.plata)
 

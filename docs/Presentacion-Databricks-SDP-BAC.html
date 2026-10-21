@@ -715,7 +715,7 @@ document.querySelectorAll('[data-quiz]').forEach(q=>{
 
 /* ---------- Medallion ---------- */
 const layerTxt={
-  bronze:'<b>🥉 Bronze — datos crudos</b>Copia fiel de lo que envía el sistema origen, sin limpiar. Se agregan columnas técnicas como <code>ingest_ts</code> y <code>batch_id</code>. Permite reprocesar si algo sale mal.<br><br><b>En el taller:</b> <code>raw_data.bronze.cumst</code> (550), <code>deal</code> (550), <code>trans</code> (1,650).',
+  bronze:'<b>🥉 Bronze — datos crudos</b>Copia fiel de lo que envía el sistema origen, sin limpiar. Se agregan columnas técnicas como <code>ingest_ts</code> y <code>batch_id</code>. Permite reprocesar si algo sale mal.<br><br><b>En el taller:</b> <code>raw_data.bronze.cumst</code> (500), <code>deal</code> (500), <code>trans</code> (1,500) al inicio; 550 / 550 / 1,650 después del lote incremental del Paso 18.',
   silver:'<b>🥈 Silver — datos limpios y modelados</b>Datos validados, sin duplicados y organizados con un modelo. Aquí aplicamos reglas de calidad (expectations).<br><br><b>En el taller:</b> modelo Data Vault en <code>data_vault.plata</code>: 3 hubs, 3 satélites y 3 links.',
   gold:'<b>🥇 Gold — datos listos para negocio</b>Tablas agregadas y fáciles de consultar para dashboards y reportes.<br><br><b>En el taller:</b> <code>ods.gold</code>: resumen de clientes, préstamos, transacciones y KPIs mensuales.'
 };
