@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teoría SDP y Data Vault — Laboratorio BAC</title>
+<style>
+  :root{
+    --orange:#FF3621; --orange-soft:#FFF1EE; --navy:#1B3139; --teal:#00A972; --teal-soft:#E8F8F2;
+    --blue:#2272B4; --blue-soft:#EAF3FB; --purple:#7B4FD6; --purple-soft:#F2EDFC; --yellow:#F5B700; --yellow-soft:#FFF8E1;
+    --gray:#5F6B73; --line:#E3E8EB; --bg:#FFFFFF; --card:#FAFBFC; --red:#D93025; --red-soft:#FDECEA;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--navy);line-height:1.6}
+  #progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--orange),var(--yellow));width:0;z-index:100;transition:width .1s}
+  nav{position:fixed;top:0;left:0;bottom:0;width:250px;background:#fff;border-right:1px solid var(--line);padding:24px 14px;overflow-y:auto;z-index:50}
+  nav .brand{font-weight:800;font-size:18px;margin-bottom:4px}
+  nav .brand span{color:var(--orange)}
+  nav .sub{font-size:12px;color:var(--gray);margin-bottom:18px}
+  nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--navy);text-decoration:none;font-size:14px;margin-bottom:2px;transition:.15s}
+  nav a .n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--line);font-size:11px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0}
+  nav a:hover{background:var(--card)}
+  nav a.active{background:var(--orange-soft);color:var(--orange);font-weight:600}
+  nav a.active .n{background:var(--orange);color:#fff}
+  nav a.done .n{background:var(--teal);color:#fff}
+  main{margin-left:250px;padding:0 48px 80px;max-width:1150px}
+  section{padding:56px 0 24px;border-bottom:1px dashed var(--line)}
+  section:last-of-type{border-bottom:none}
+  h1{font-size:40px;margin:0 0 8px;line-height:1.15}
+  h2{font-size:30px;margin:0 0 6px;display:flex;align-items:center;gap:12px}
+  h2 .tag{font-size:12px;background:var(--orange);color:#fff;border-radius:20px;padding:3px 10px;font-weight:600}
+  h3{font-size:20px;margin:28px 0 10px}
+  .lead{font-size:17px;color:var(--gray);max-width:820px}
+  .hero{padding:64px 0 40px;border-bottom:1px dashed var(--line)}
+  .hero .badges{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+  .badge{font-size:12px;padding:4px 12px;border-radius:20px;font-weight:600}
+  .b-o{background:var(--orange-soft);color:var(--orange)} .b-t{background:var(--teal-soft);color:var(--teal)}
+  .b-b{background:var(--blue-soft);color:var(--blue)} .b-p{background:var(--purple-soft);color:var(--purple)}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:1000px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:760px){nav{display:none} main{margin-left:0;padding:0 18px 60px} .g2,.g3,.g4{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;transition:.2s}
+  .card:hover{box-shadow:0 6px 20px rgba(27,49,57,.08);transform:translateY(-2px)}
+  .card .ico{font-size:26px;margin-bottom:6px}
+  .card h4{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;font-size:14px;color:var(--gray)}
+  .callout{border-left:4px solid var(--blue);background:var(--blue-soft);padding:14px 18px;border-radius:0 10px 10px 0;margin:16px 0;font-size:15px}
+  .callout.tip{border-color:var(--teal);background:var(--teal-soft)}
+  .callout.warn{border-color:var(--yellow);background:var(--yellow-soft)}
+  .callout.key{border-color:var(--orange);background:var(--orange-soft)}
+  .callout b{display:block;margin-bottom:2px}
+  pre{background:#0F1E24;color:#E6EDF0;padding:16px 18px;border-radius:12px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;margin:12px 0;position:relative}
+  pre .c{color:#7F9AA5} pre .k{color:#FF8A65} pre .s{color:#A5D6A7} pre .d{color:#FFD54F} pre .f{color:#81D4FA}
+  code{font-family:var(--mono);background:#F1F3F5;padding:1px 6px;border-radius:5px;font-size:13px}
+  pre code{background:none;padding:0}
+  .copy{position:absolute;top:8px;right:8px;background:#26404A;color:#cfe;border:none;border-radius:6px;font-size:11px;padding:4px 8px;cursor:pointer}
+  .copy:hover{background:var(--orange)}
+  table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0;background:#fff}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+  th{background:var(--card);font-weight:600}
+  td.mono,th.mono{font-family:var(--mono);font-size:12.5px}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--navy);padding:8px 14px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;transition:.15s;margin:4px 6px 4px 0}
+  .btn:hover{border-color:var(--orange);color:var(--orange)}
+  .btn.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .btn.primary:hover{background:#E02D1B;color:#fff}
+  .btn.ghost{background:var(--card)}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:14px 0 0;flex-wrap:wrap}
+  .tab{padding:9px 16px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--gray);border-bottom:3px solid transparent}
+  .tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+  .tabpane{display:none;padding:16px 0} .tabpane.active{display:block;animation:fade .3s}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  details{border:1px solid var(--line);border-radius:10px;margin:10px 0;background:#fff}
+  summary{cursor:pointer;padding:12px 16px;font-weight:600;list-style:none;display:flex;justify-content:space-between}
+  summary::after{content:'+';color:var(--orange);font-size:20px;line-height:1}
+  details[open] summary::after{content:'−'}
+  details .body{padding:0 16px 14px;font-size:15px}
+  .lab{border:2px solid var(--line);border-radius:16px;padding:20px;margin:18px 0;background:#fff}
+  .lab-title{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:10px}
+  .lab-title .pill{background:var(--purple);color:#fff;font-size:11px;padding:2px 9px;border-radius:12px}
+  .log{background:#0F1E24;color:#B8F5D0;font-family:var(--mono);font-size:12.5px;border-radius:10px;padding:10px 14px;min-height:60px;max-height:170px;overflow-y:auto;margin-top:10px}
+  .log div{animation:fade .3s}
+  .stat{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:4px 8px 4px 0;font-size:13px}
+  .stat b{font-size:20px;display:block;color:var(--orange)}
+  /* Medallion */
+  .medal{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+  .layer{flex:1;min-width:180px;border-radius:14px;padding:18px;cursor:pointer;border:2px solid transparent;transition:.2s;text-align:center}
+  .layer:hover,.layer.sel{transform:translateY(-3px);border-color:var(--navy)}
+  .layer .t{font-size:20px;font-weight:800}
+  .bronze{background:#F6E6D8;color:#8A4B1C} .silver{background:#ECEFF1;color:#455A64} .gold{background:#FFF4CC;color:#8A6D00}
+  .arrow{align-self:center;font-size:26px;color:var(--gray)}
+  #layerInfo{margin-top:14px}
+  /* Data Vault diagram */
+  .dv{position:relative;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:auto auto auto;gap:18px 10px;align-items:center;justify-items:center;padding:10px 0}
+  .ent{border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;text-align:center;min-width:130px;border:2px solid transparent;transition:.2s;z-index:2;background:#fff}
+  .ent small{display:block;font-weight:500;font-size:11px;opacity:.8}
+  .ent.hub{background:var(--blue-soft);color:var(--blue);border-color:var(--blue)}
+  .ent.sat{background:var(--yellow-soft);color:#8A6D00;border-color:var(--yellow)}
+  .ent.link{background:var(--teal-soft);color:var(--teal);border-color:var(--teal);border-radius:30px}
+  .ent:hover,.ent.sel{transform:scale(1.06);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+  .ent.dim{opacity:.3}
+  #dvSvg{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+  .legend{display:flex;gap:16px;font-size:13px;flex-wrap:wrap;margin:6px 0 12px}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+  .hl-hub{background:#CFE3F5 !important} .hl-sat{background:#FFE9A8 !important} .hl-link{background:#C5EEDD !important}
+  /* Streaming */
+  .stream-wrap{display:grid;grid-template-columns:1fr 120px 1fr;gap:12px;align-items:start}
+  .box{border:1px solid var(--line);border-radius:12px;padding:10px;min-height:150px;background:var(--card)}
+  .box h5{margin:0 0 8px;font-size:13px;color:var(--gray);text-transform:uppercase;letter-spacing:.5px}
+  .row{font-family:var(--mono);font-size:12px;padding:4px 8px;border-radius:6px;margin:3px 0;background:#fff;border:1px solid var(--line);animation:fade .3s}
+  .row.new{border-color:var(--orange);background:var(--orange-soft)}
+  .row.ok{border-color:var(--teal)}
+  .row.bad{border-color:var(--red);background:var(--red-soft);text-decoration:line-through}
+  .mid{text-align:center;font-size:12px;color:var(--gray);padding-top:30px}
+  .cp{background:var(--navy);color:#fff;border-radius:10px;padding:8px;font-family:var(--mono);font-size:12px;margin-top:8px}
+  .file{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin:4px;animation:fade .3s}
+  .file.new{border-color:var(--orange);background:var(--orange-soft)}
+  .file.done{border-color:var(--teal);background:var(--teal-soft)}
+  /* SDP DAG */
+  .dag{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 30px;padding:10px 0}
+  .dag .col{display:flex;flex-direction:column;gap:10px;justify-content:center}
+  .dag .col h6{margin:0 0 4px;font-size:12px;color:var(--gray);text-align:center;text-transform:uppercase}
+  .node{background:#fff;border:2px solid var(--line);border-radius:10px;padding:7px 10px;font-family:var(--mono);font-size:11.5px;cursor:pointer;text-align:center;z-index:2;position:relative;transition:.2s}
+  .node.br{border-color:#C98A55} .node.mv{border-color:var(--blue)} .node.gd{border-color:var(--yellow)} .node.pv{border-color:var(--purple);border-style:dashed}
+  .node.on{background:var(--orange-soft);border-color:var(--orange);transform:scale(1.04)}
+  .node.up{background:var(--blue-soft)} .node.down{background:var(--teal-soft)}
+  .node.dim{opacity:.35}
+  #dagSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  .steps{display:flex;gap:0;margin:14px 0;flex-wrap:wrap}
+  .step{flex:1;min-width:120px;text-align:center;padding:12px 6px;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--line);position:relative;color:var(--gray);transition:.3s}
+  .step:first-child{border-radius:10px 0 0 10px} .step:last-child{border-radius:0 10px 10px 0}
+  .step.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .step.past{background:var(--teal-soft);color:var(--teal)}
+  /* Functions */
+  .search{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:15px;margin:10px 0}
+  .search:focus{outline:2px solid var(--orange);border-color:transparent}
+  .fn{border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden;background:#fff}
+  .fn-h{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;gap:10px}
+  .fn-h code{font-size:14px;background:var(--orange-soft);color:var(--orange);font-weight:700}
+  .fn-h .cat{font-size:11px;padding:2px 9px;border-radius:12px;white-space:nowrap}
+  .fn-b{display:none;padding:0 16px 14px;font-size:14.5px}
+  .fn.open .fn-b{display:block;animation:fade .3s}
+  /* Quiz */
+  .quiz{border:2px dashed var(--purple);border-radius:14px;padding:16px 20px;margin:20px 0;background:var(--purple-soft)}
+  .quiz .q{font-weight:700;margin-bottom:8px}
+  .opt{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:6px 0;cursor:pointer;font-size:14px}
+  .opt:hover{border-color:var(--purple)}
+  .opt.right{background:var(--teal-soft);border-color:var(--teal);font-weight:600}
+  .opt.wrong{background:var(--red-soft);border-color:var(--red)}
+  .fb{font-size:14px;margin-top:6px;min-height:20px}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.vs,.stream-wrap{grid-template-columns:1fr}}
+  .vs .card h4{display:flex;align-items:center;gap:8px}
+  footer{margin-left:250px;padding:30px 48px;color:var(--gray);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){footer{margin-left:0}}
+  .kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;font-size:12px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<nav id="nav">
+  <div class="brand">Lab <span>SDP</span> BAC</div>
+  <div class="sub">Teoría interactiva para ingenieros de datos</div>
+  <a href="#inicio"><span class="n">0</span>Inicio</a>
+  <a href="#databricks"><span class="n">1</span>¿Qué es Databricks?</a>
+  <a href="#medallion"><span class="n">2</span>Lakehouse y Medallion</a>
+  <a href="#datavault"><span class="n">3</span>Data Vault</a>
+  <a href="#streaming"><span class="n">4</span>Streaming</a>
+  <a href="#autoloader"><span class="n">5</span>Auto Loader</a>
+  <a href="#sdp"><span class="n">6</span>Teoría SDP</a>
+  <a href="#funciones"><span class="n">7</span>Funciones clave</a>
+  <a href="#transformaciones"><span class="n">8</span>Transformaciones y usos</a>
+</nav>
+
+<main>
+
+<!-- ========================= 0. INICIO ========================= -->
+<div class="hero" id="inicio">
+  <span class="badge b-o">Laboratorio BAC · Ingeniería de Datos</span>
+  <h1>Spark Declarative Pipelines<br>y Data Vault, <span style="color:var(--orange)">explicados fácil</span></h1>
+  <p class="lead">Esta página resume la teoría que necesitas para el taller. Cada sección tiene ejemplos, simuladores que puedes tocar y preguntas cortas para comprobar lo aprendido. Lee en orden: cada tema usa conceptos del anterior.</p>
+  <div class="badges">
+    <span class="badge b-b">Databricks</span><span class="badge b-t">Delta Lake</span><span class="badge b-p">Data Vault 2.0</span>
+    <span class="badge b-o">Structured Streaming</span><span class="badge b-b">Auto Loader</span><span class="badge b-t">SDP</span>
+  </div>
+  <div class="grid g4">
+    <div class="card"><div class="ico">🧭</div><h4>Navega</h4><p>Usa el menú de la izquierda. La barra naranja de arriba muestra tu avance.</p></div>
+    <div class="card"><div class="ico">🧪</div><h4>Experimenta</h4><p>Los recuadros <b>Simulador</b> son interactivos: dale clic a los botones.</p></div>
+    <div class="card"><div class="ico">❓</div><h4>Ponte a prueba</h4><p>Las preguntas moradas te dicen al instante si acertaste.</p></div>
+    <div class="card"><div class="ico">📋</div><h4>Copia código</h4><p>Cada bloque de código tiene un botón <b>Copiar</b>.</p></div>
+  </div>
+</div>
+
+<!-- ========================= 1. DATABRICKS ========================= -->
+<section id="databricks">
+  <h2>¿Qué es Databricks? <span class="tag">Base</span></h2>
+  <p class="lead">Databricks es una <b>plataforma de datos e inteligencia artificial en la nube</b>. En un solo lugar puedes guardar datos, transformarlos, analizarlos con SQL, programar procesos automáticos y entrenar modelos de machine learning. La crearon los mismos autores de <b>Apache Spark</b>.</p>
+
+  <div class="callout key"><b>Analogía</b>Piensa en Databricks como una cocina industrial: los <i>datos</i> son los ingredientes, <i>Spark</i> es el equipo de cocineros que trabajan en paralelo, <i>Delta Lake</i> es la despensa ordenada y <i>Unity Catalog</i> es el inventario con control de quién puede tomar qué.</div>
+
+  <h3>Piezas principales</h3>
+  <div class="grid g3">
+    <div class="card"><div class="ico">⚡</div><h4>Apache Spark</h4><p>Motor que procesa datos en paralelo repartiendo el trabajo entre muchas máquinas. Así procesa millones de filas rápido.</p></div>
+    <div class="card"><div class="ico">🔺</div><h4>Delta Lake</h4><p>Formato de tabla sobre archivos Parquet. Agrega transacciones ACID, historial de versiones (<i>time travel</i>) y validación de esquema.</p></div>
+    <div class="card"><div class="ico">🗂️</div><h4>Unity Catalog</h4><p>Gobierno de datos: organiza todo en <code>catálogo.esquema.tabla</code> y controla permisos, linaje y auditoría.</p></div>
+    <div class="card"><div class="ico">🖥️</div><h4>Compute</h4><p>Clusters, SQL Warehouses y <b>Serverless</b> (Databricks administra las máquinas por ti). En el taller usamos serverless.</p></div>
+    <div class="card"><div class="ico">📓</div><h4>Notebooks y Jobs</h4><p>Notebooks para escribir código (Python, SQL). Jobs para programar ejecuciones automáticas.</p></div>
+    <div class="card"><div class="ico">🔁</div><h4>Lakeflow SDP</h4><p>Pipelines declarativos: describes las tablas y Databricks se encarga de orquestar, reintentar y validar.</p></div>
+  </div>
+
+  <h3>¿Para qué es útil?</h3>
+  <div class="tabs" data-tabs="uses">
+    <button class="tab active" data-t="u1">Ingeniería de datos</button>
+    <button class="tab" data-t="u2">Analítica / BI</button>
+    <button class="tab" data-t="u3">Machine Learning / IA</button>
+    <button class="tab" data-t="u4">Gobierno</button>
+  </div>
+  <div class="tabpane active" id="u1">Construir pipelines que llevan datos desde sistemas origen (por ejemplo AS400, bases de datos, archivos) hasta tablas limpias y confiables, en batch o casi en tiempo real. <b>Esto es lo que hacemos en el taller.</b></div>
+  <div class="tabpane" id="u2">Consultar las tablas Gold con SQL, crear dashboards y dar a negocio KPIs como “monto total transaccionado por mes”.</div>
+  <div class="tabpane" id="u3">Entrenar modelos (por ejemplo, riesgo de crédito o detección de fraude) usando las mismas tablas, con MLflow para rastrear experimentos.</div>
+  <div class="tabpane" id="u4">Saber quién accede a qué dato, de dónde viene cada tabla (linaje) y aplicar permisos por catálogo, esquema o columna.</div>
+
+  <h3>El nombre de 3 niveles</h3>
+  <p>En Unity Catalog toda tabla tiene un nombre completo de tres partes. En el laboratorio:</p>
+  <table>
+    <tr><th>Capa</th><th>Catálogo</th><th>Esquema</th><th>Tabla</th><th class="mono">Nombre completo</th></tr>
+    <tr><td>Bronze</td><td>raw_data</td><td>bronze</td><td>cumst</td><td class="mono">raw_data.bronze.cumst</td></tr>
+    <tr><td>Silver</td><td>data_vault</td><td>plata</td><td>hub_clientes_dsh</td><td class="mono">data_vault.plata.hub_clientes_dsh</td></tr>
+    <tr><td>Gold</td><td>ods</td><td>gold</td><td>kpi_general_dsh</td><td class="mono">ods.gold.kpi_general_dsh</td></tr>
+  </table>
+</section>
+
+<!-- ========================= 2. MEDALLION ========================= -->
+<section id="medallion">
+  <h2>Lakehouse y arquitectura Medallion</h2>
+  <p class="lead">Un <b>Lakehouse</b> combina lo barato y flexible de un Data Lake (archivos en la nube) con lo confiable de un Data Warehouse (tablas con transacciones y SQL). Para ordenar los datos dentro del Lakehouse usamos la arquitectura <b>Medallion</b>: tres capas que van mejorando la calidad.</p>
+  <p><b>Haz clic en cada capa:</b></p>
+  <div class="medal">
+    <div class="layer bronze" data-l="bronze"><div class="t">🥉 Bronze</div>Datos crudos</div>
+    <div class="arrow">➜</div>
+    <div class="layer silver" data-l="silver"><div class="t">🥈 Silver</div>Datos limpios y modelados</div>
+    <div class="arrow">➜</div>
+    <div class="layer gold" data-l="gold"><div class="t">🥇 Gold</div>Datos listos para negocio</div>
+  </div>
+  <div id="layerInfo" class="callout">Selecciona una capa para ver su descripción.</div>
+</section>
+
+<!-- ========================= 3. DATA VAULT ========================= -->
+<section id="datavault">
+  <h2>Data Vault <span class="tag">Modelado Silver</span></h2>
+  <p class="lead"><b>Data Vault</b> es una forma de modelar datos pensada para guardar <i>toda la historia</i>, integrar muchos sistemas origen y crecer sin rehacer el modelo. Separa cada concepto de negocio en tres tipos de tabla: <b>Hubs</b>, <b>Satélites</b> y <b>Links</b>.</p>
+
+  <div class="grid g3">
+    <div class="card" style="border-color:var(--blue)"><div class="ico">🔵</div><h4>Hub = la identidad</h4><p>Guarda <b>solo la llave de negocio</b> (por ejemplo, el código del cliente) una vez, sin duplicados. Responde: <i>“¿qué clientes existen?”</i></p></div>
+    <div class="card" style="border-color:var(--yellow)"><div class="ico">🟡</div><h4>Satélite = la descripción</h4><p>Guarda los <b>atributos</b> que describen al hub (nombre, ciudad, estado) y cómo cambian en el tiempo. Responde: <i>“¿cómo es este cliente?”</i></p></div>
+    <div class="card" style="border-color:var(--teal)"><div class="ico">🟢</div><h4>Link = la relación</h4><p>Une dos o más hubs. Responde: <i>“¿qué cliente tiene qué préstamo?”</i></p></div>
+  </div>
+
+  <div class="callout key"><b>Analogía: una cédula de identidad</b>El <b>Hub</b> es el número de cédula (nunca cambia). El <b>Satélite</b> es la información de la persona: dirección, estado civil, teléfono (cambia con el tiempo y queremos el historial). El <b>Link</b> es, por ejemplo, el contrato que une a esa persona con un préstamo.</div>
+
+  <h3>Diagrama del laboratorio — haz clic en una tabla</h3>
+  <div class="legend"><span><i style="background:var(--blue)"></i>Hub</span><span><i style="background:var(--yellow)"></i>Satélite</span><span><i style="background:var(--teal)"></i>Link</span></div>
+  <div class="dv" id="dv">
+    <svg id="dvSvg"></svg>
+    <div class="ent sat" id="e_sat_cli" style="grid-column:1;grid-row:1">sat_clientes<small>atributos del cliente</small></div>
+    <div class="ent sat" id="e_sat_pre" style="grid-column:3;grid-row:1">sat_prestamos<small>atributos del préstamo</small></div>
+    <div class="ent sat" id="e_sat_trx" style="grid-column:5;grid-row:1">sat_transacciones<small>atributos de la transacción</small></div>
+    <div class="ent hub" id="e_hub_cli" style="grid-column:1;grid-row:2">hub_clientes<small>customer_id</small></div>
+    <div class="ent link" id="e_lnk_cp" style="grid-column:2;grid-row:2">link_clientes_prestamos</div>
+    <div class="ent hub" id="e_hub_pre" style="grid-column:3;grid-row:2">hub_prestamos<small>deal_id</small></div>
+    <div class="ent link" id="e_lnk_pt" style="grid-column:4;grid-row:2">link_prestamos_transacciones</div>
+    <div class="ent hub" id="e_hub_trx" style="grid-column:5;grid-row:2">hub_transacciones<small>trx_id</small></div>
+    <div class="ent link" id="e_lnk_ct" style="grid-column:3;grid-row:3">link_clientes_transacciones</div>
+  </div>
+  <div id="dvInfo" class="lab" style="margin-top:6px"><div class="lab-title">👆 Selecciona una tabla del diagrama</div><p style="margin:0;color:var(--gray)">Verás qué guarda, un ejemplo con datos y el código SDP que la genera en el taller.</p></div>
+
+  <h3>¿Por qué usar un hash (SHA-256) como llave?</h3>
+  <p>En cada hub calculamos <code>sha2(customer_id, 256)</code>, que convierte la llave de negocio en un texto de 64 caracteres. Ventajas:</p>
+  <div class="grid g3">
+    <div class="card"><h4>Siempre igual</h4><p>La misma entrada produce siempre el mismo hash, sin importar cuándo ni dónde se calcule.</p></div>
+    <div class="card"><h4>Carga en paralelo</h4><p>Hubs, satélites y links pueden calcular la llave por separado, sin esperar a que otra tabla genere un ID.</p></div>
+    <div class="card"><h4>Joins uniformes</h4><p>Todas las llaves tienen el mismo tipo y largo, lo que simplifica las uniones entre tablas.</p></div>
+  </div>
+
+  <div class="lab">
+    <div class="lab-title"><span class="pill">Simulador</span> Descomponer un registro Bronze en Data Vault</div>
+    <p style="margin:0 0 8px">Este es un registro de <code>raw_data.bronze.trans</code>. Presiona los botones para ver qué columnas van a cada tabla.</p>
+    <table id="rawRow">
+      <tr><th class="mono">trx_id</th><th class="mono">customer_id</th><th class="mono">deal_id</th><th class="mono">traamt</th><th class="mono">traccy</th><th class="mono">travdm</th><th class="mono">tracde</th></tr>
+      <tr><td class="mono" data-c="trx_id">T005001</td><td class="mono" data-c="customer_id">C00042</td><td class="mono" data-c="deal_id">D00107</td><td class="mono" data-c="traamt">1250.75</td><td class="mono" data-c="traccy">CRC</td><td class="mono" data-c="travdm">2026-09-14</td><td class="mono" data-c="tracde">DEP</td></tr>
+    </table>
+    <button class="btn" onclick="decomp('hub')">🔵 Hub</button>
+    <button class="btn" onclick="decomp('sat')">🟡 Satélite</button>
+    <button class="btn" onclick="decomp('link')">🟢 Link</button>
+    <button class="btn ghost" onclick="decomp('reset')">↺ Limpiar</button>
+    <div id="decompInfo" class="callout" style="margin-bottom:0">Elige un tipo de tabla.</div>
+  </div>
+
+  <h3>Ventajas y cuidados</h3>
+  <div class="vs">
+    <div class="card"><h4>✅ Ventajas</h4><p>• Historial completo y auditable.<br>• Agregar un sistema origen nuevo = agregar satélites, sin romper lo existente.<br>• Cargas en paralelo gracias al hash.<br>• Cada tabla tiene una sola responsabilidad.</p></div>
+    <div class="card"><h4>⚠️ Cuidados</h4><p>• Hay más tablas que en un modelo tradicional.<br>• Para consultar hay que hacer varios joins; por eso existe la capa <b>Gold</b>, que entrega datos ya agregados.<br>• Requiere disciplina en nombres y llaves.</p></div>
+  </div>
+
+  <div class="quiz" data-quiz>
+    <div class="q">❓ El banco agrega un nuevo campo “segmento del cliente” desde otro sistema. ¿Dónde lo guardarías?</div>
+    <button class="opt" data-ok="0">En hub_clientes, como una columna nueva</button>
+    <button class="opt" data-ok="1">En un satélite (nuevo o existente) ligado a hub_clientes</button>
+    <button class="opt" data-ok="0">En link_clientes_prestamos</button>
+    <div class="fb" data-r="Correcto: los atributos descriptivos van en satélites. El hub solo guarda la llave de negocio." data-w="No exactamente. El hub solo guarda la llave y los links solo relaciones. Los atributos van en satélites."></div>
+  </div>
+</section>
+
+<!-- ========================= 4. STREAMING ========================= -->
+<section id="streaming">
+  <h2>Streaming <span class="tag">Procesamiento incremental</span></h2>
+  <p class="lead"><b>Streaming</b> significa procesar los datos <b>a medida que llegan</b>, en lugar de esperar y procesar todo de una vez. En Databricks se hace con <b>Spark Structured Streaming</b>, que trata una tabla o carpeta como una fuente que va creciendo.</p>
+
+  <div class="vs">
+    <div class="card"><h4>📦 Batch</h4><p>Lee <b>todos</b> los datos cada vez que se ejecuta. Simple, pero si la tabla tiene 100 millones de filas y llegaron 1,000 nuevas, igual procesa las 100 millones.</p><pre><span class="f">spark</span>.read.table(<span class="s">"raw_data.bronze.trans"</span>)</pre></div>
+    <div class="card"><h4>🌊 Streaming</h4><p>Lee <b>solo lo nuevo</b> desde la última ejecución. Recuerda hasta dónde llegó gracias al <b>checkpoint</b>.</p><pre><span class="f">spark</span>.readStream.table(<span class="s">"raw_data.bronze.trans"</span>)</pre></div>
+  </div>
+
+  <h3>Conceptos clave</h3>
+  <details open><summary>Micro-batch</summary><div class="body">Spark no procesa fila por fila: agrupa lo que llegó en pequeños lotes (micro-batches) y los procesa uno tras otro. Por eso hablamos de <i>near real time</i> (casi tiempo real): segundos o minutos de latencia.</div></details>
+  <details><summary>Checkpoint</summary><div class="body">Es una carpeta donde Spark guarda <b>hasta qué punto ya leyó</b> (el “offset”). Si el proceso se cae y se reinicia, continúa desde ahí sin perder ni duplicar datos. En SDP el checkpoint se administra automáticamente: no tienes que configurarlo.</div></details>
+  <details><summary>Exactly-once (exactamente una vez)</summary><div class="body">Gracias al checkpoint y a las transacciones de Delta Lake, cada registro de la fuente se escribe una sola vez en el destino, aunque haya fallas.</div></details>
+  <details><summary>Fuente append-only</summary><div class="body">Streaming funciona mejor cuando la fuente solo <b>agrega</b> filas. Si en la fuente se actualizan o borran filas, el stream puede fallar. Para ese caso existen herramientas como <code>create_auto_cdc_flow</code> (sección 7).</div></details>
+  <details><summary>Trigger: ¿cada cuánto se ejecuta?</summary><div class="body"><b>Continuo:</b> el proceso queda corriendo y toma datos apenas llegan.<br><b>Disparado (triggered):</b> se ejecuta, procesa todo lo pendiente y se detiene. Se puede programar con un Job (por ejemplo, cada 2 minutos). Nuestro pipeline NRT usa este modo.</div></details>
+
+  <div class="lab">
+    <div class="lab-title"><span class="pill">Simulador</span> Batch vs Streaming con checkpoint</div>
+    <p style="margin:0 0 8px">1) Agrega lotes de transacciones a Bronze. 2) Ejecuta el pipeline. Observa cuántas filas procesa cada modo.</p>
+    <button class="btn" onclick="stAdd()">➕ Llegan 3 transacciones a Bronze</button>
+    <button class="btn primary" onclick="stRun()">▶ Ejecutar pipeline</button>
+    <button class="btn ghost" onclick="stReset()">↺ Reiniciar</button>
+    <div class="stream-wrap" style="margin-top:10px">
+      <div class="box"><h5>Bronze (fuente)</h5><div id="stSrc"></div></div>
+      <div class="mid">readStream<br>➜<div class="cp" id="stCp">checkpoint<br>offset = 0</div></div>
+      <div class="box"><h5>Silver (Streaming Table)</h5><div id="stDst"></div></div>
+    </div>
+    <div>
+      <span class="stat">Filas leídas en Streaming<b id="stS">0</b></span>
+      <span class="stat">Filas que habría leído Batch<b id="stB">0</b></span>
+    </div>
+    <div class="log" id="stLog"><div>&gt; Esperando datos...</div></div>
+  </div>
+
+  <div class="quiz" data-quiz>
+    <div class="q">❓ Un pipeline streaming se cayó a mitad de la ejecución. Al reiniciarlo, ¿qué pasa?</div>
+    <button class="opt" data-ok="0">Vuelve a procesar todo desde el inicio y duplica datos</button>
+    <button class="opt" data-ok="1">Continúa desde el último offset guardado en el checkpoint</button>
+    <button class="opt" data-ok="0">Pierde los datos que no alcanzó a procesar</button>
+    <div class="fb" data-r="¡Exacto! El checkpoint guarda el progreso, así no se duplica ni se pierde nada." data-w="Revisa el concepto de checkpoint: guarda hasta dónde se leyó."></div>
+  </div>
+</section>
+
+<!-- ========================= 5. AUTO LOADER ========================= -->
+<section id="autoloader">
+  <h2>Auto Loader <span class="tag">Ingesta de archivos</span></h2>
+  <p class="lead"><b>Auto Loader</b> es la forma de Databricks de <b>leer archivos nuevos que llegan a una carpeta</b> (CSV, JSON, Parquet, etc.) de manera incremental. Es streaming aplicado a archivos: detecta cuáles son nuevos y solo procesa esos.</p>
+  <div class="callout"><b>¿Dónde encaja?</b>Normalmente se usa para cargar la capa <b>Bronze</b>: un sistema origen (por ejemplo, una extracción de AS400) deja archivos en un Volume de Unity Catalog y Auto Loader los convierte en una tabla Delta. En el taller generamos Bronze con un notebook, pero en producción lo común es Auto Loader.</div>
+
+  <h3>Cómo se escribe</h3>
+  <pre><button class="copy">Copiar</button><span class="k">from</span> pyspark <span class="k">import</span> pipelines <span class="k">as</span> dp
+
+<span class="d">@dp.table</span>(name=<span class="s">"raw_data.bronze.trans_autoloader"</span>)
+<span class="k">def</span> <span class="f">trans_autoloader</span>():
+    <span class="k">return</span> (
+        spark.readStream
+            .format(<span class="s">"cloudFiles"</span>)                  <span class="c"># cloudFiles = Auto Loader</span>
+            .option(<span class="s">"cloudFiles.format"</span>, <span class="s">"json"</span>)   <span class="c"># formato de los archivos</span>
+            .load(<span class="s">"/Volumes/raw_data/bronze/landing/trans/"</span>)  <span class="c"># carpeta a vigilar</span>
+    )</pre>
+
+  <h3>Características importantes</h3>
+  <div class="grid g2">
+    <div class="card"><h4>📁 Detecta archivos nuevos</h4><p>Lleva registro de los archivos ya procesados. Tiene dos modos: <b>directory listing</b> (revisa la carpeta) y <b>file notification</b> (recibe avisos de la nube; útil con muchísimos archivos).</p></div>
+    <div class="card"><h4>🧬 Infiere el esquema</h4><p>Lee una muestra de archivos y deduce columnas y tipos. No tienes que escribir el esquema a mano.</p></div>
+    <div class="card"><h4>➕ Evolución de esquema</h4><p>Si llega un archivo con una columna nueva, Auto Loader la detecta y la agrega (comportamiento por defecto: <code>addNewColumns</code>, que reinicia el stream una vez para incluirla).</p></div>
+    <div class="card"><h4>🛟 Datos rescatados</h4><p>Los valores que no calzan con el esquema se guardan en la columna <code>_rescued_data</code> en lugar de perderse.</p></div>
+  </div>
+
+  <div class="lab">
+    <div class="lab-title"><span class="pill">Simulador</span> Auto Loader vigilando una carpeta</div>
+    <button class="btn" onclick="alAdd(false)">📄 Llega un archivo</button>
+    <button class="btn" onclick="alAdd(true)">🧬 Llega archivo con columna nueva</button>
+    <button class="btn primary" onclick="alRun()">▶ Ejecutar pipeline</button>
+    <button class="btn ghost" onclick="alReset()">↺ Reiniciar</button>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="box"><h5>/Volumes/.../landing/trans/</h5><div id="alFiles"></div></div>
+      <div class="box"><h5>Tabla Bronze — esquema detectado</h5><div id="alSchema"></div><div style="margin-top:8px;font-size:13px">Filas en la tabla: <b id="alRows">0</b></div></div>
+    </div>
+    <div class="log" id="alLog"><div>&gt; Carpeta vacía. Esperando archivos...</div></div>
+  </div>
+</section>
+
+<!-- ========================= 6. SDP ========================= -->
+<section id="sdp">
+  <h2>Teoría de SDP <span class="tag">Lakeflow Spark Declarative Pipelines</span></h2>
+  <p class="lead"><b>SDP</b> es un framework para construir pipelines de datos de forma <b>declarativa</b>: tú describes <i>qué</i> tablas quieres y <i>de dónde</i> salen; Databricks decide <i>cómo</i> ejecutarlas, en qué orden, con qué infraestructura y cómo recuperarse de errores.</p>
+
+  <h3>Imperativo vs Declarativo</h3>
+  <div class="tabs" data-tabs="impdec">
+    <button class="tab active" data-t="imp">Notebook (imperativo)</button>
+    <button class="tab" data-t="dec">SDP (declarativo)</button>
+  </div>
+  <div class="tabpane active" id="imp">
+    <p>Tú controlas cada paso: leer, transformar, escribir, decidir el orden y manejar errores.</p>
+<pre><span class="c"># 1. Leer</span>
+df = spark.read.table(<span class="s">"raw_data.bronze.cumst"</span>)
+<span class="c"># 2. Transformar</span>
+hub = df.select(F.sha2(<span class="s">"customer_id"</span>, <span class="d">256</span>).alias(<span class="s">"customer_hk"</span>), ...)
+<span class="c"># 3. Validar a mano</span>
+<span class="k">if</span> hub.filter(<span class="s">"customer_bk IS NULL"</span>).count() > <span class="d">0</span>: <span class="k">raise</span> Exception(<span class="s">"nulos"</span>)
+<span class="c"># 4. Escribir</span>
+hub.write.mode(<span class="s">"overwrite"</span>).saveAsTable(<span class="s">"data_vault.plata.hub_clientes_dsh"</span>)
+<span class="c"># 5. Recordar ejecutar este notebook ANTES que el de satélites...</span></pre>
+  </div>
+  <div class="tabpane" id="dec">
+    <p>Declaras la tabla y su regla de calidad. SDP crea la tabla, la escribe, valida y ordena las dependencias.</p>
+<pre><span class="d">@dp.materialized_view</span>(name=<span class="s">"data_vault.plata.hub_clientes_dsh"</span>)
+<span class="d">@dp.expect_or_fail</span>(<span class="s">"pk_no_nulo"</span>, <span class="s">"customer_bk IS NOT NULL"</span>)
+<span class="k">def</span> <span class="f">hub_clientes_dsh</span>():
+    <span class="k">return</span> spark.read.table(<span class="s">"raw_data.bronze.cumst"</span>).select(...)</pre>
+    <div class="callout tip" style="margin-bottom:0"><b>Resultado</b>Menos código, sin escribir <code>.write</code>, sin orden manual, y con métricas de calidad automáticas en la interfaz.</div>
+  </div>
+
+  <h3>¿Qué te da SDP “gratis”?</h3>
+  <div class="grid g3">
+    <div class="card"><div class="ico">🕸️</div><h4>Orden automático (DAG)</h4><p>Analiza qué tabla lee de cuál y arma el grafo de ejecución.</p></div>
+    <div class="card"><div class="ico">✅</div><h4>Calidad de datos</h4><p>Expectations: reglas que registran, descartan o detienen según el caso.</p></div>
+    <div class="card"><div class="ico">♻️</div><h4>Incrementalidad</h4><p>Streaming tables procesan solo lo nuevo; checkpoints administrados.</p></div>
+    <div class="card"><div class="ico">🔧</div><h4>Infraestructura</h4><p>Con serverless no configuras clusters; escala solo.</p></div>
+    <div class="card"><div class="ico">🔁</div><h4>Reintentos</h4><p>En modo producción reintenta automáticamente ante fallas transitorias.</p></div>
+    <div class="card"><div class="ico">📜</div><h4>Event log</h4><p>Registro de cada ejecución: tiempos, filas, resultados de expectations.</p></div>
+  </div>
+
+  <h3>Los 3 tipos de dataset</h3>
+  <div class="tabs" data-tabs="ds">
+    <button class="tab active" data-t="ds1">Streaming Table</button>
+    <button class="tab" data-t="ds2">Materialized View</button>
+    <button class="tab" data-t="ds3">Vista temporal</button>
+  </div>
+  <div class="tabpane active" id="ds1">
+    <p><b>Streaming Table (ST):</b> tabla Delta que se llena de forma <b>incremental</b>. Cada ejecución procesa solo las filas nuevas de la fuente. Ideal para ingesta y para Silver en near real time.</p>
+<pre><span class="d">@dp.table</span>(name=<span class="s">"data_vault.plata.nrt_hub_clientes_dsh"</span>)
+<span class="k">def</span> <span class="f">nrt_hub_clientes_dsh</span>():
+    <span class="k">return</span> spark.<b>readStream</b>.table(<span class="s">"raw_data.bronze.cumst"</span>)  <span class="c"># readStream ⇒ Streaming Table</span></pre>
+    <p><b>Úsala cuando:</b> la fuente solo agrega filas y quieres baja latencia o procesar volúmenes grandes sin releer todo.</p>
+  </div>
+  <div class="tabpane" id="ds2">
+    <p><b>Materialized View (MV):</b> tabla cuyo resultado siempre refleja la consulta completa sobre la fuente. Databricks la actualiza en cada ejecución (y cuando es posible, la recalcula de forma incremental por ti).</p>
+<pre><span class="d">@dp.materialized_view</span>(name=<span class="s">"ods.gold.resumen_clientes_dsh"</span>)
+<span class="k">def</span> <span class="f">resumen_clientes_dsh</span>():
+    <span class="k">return</span> spark.<b>read</b>.table(<span class="s">"data_vault.plata.sat_clientes_dsh"</span>).groupBy(<span class="s">"country"</span>).count()</pre>
+    <p><b>Úsala cuando:</b> haces agregaciones (<code>groupBy</code>), joins complejos, o la fuente puede tener actualizaciones/borrados. Por eso <b>Gold siempre es MV</b>, incluso en el pipeline NRT.</p>
+  </div>
+  <div class="tabpane" id="ds3">
+    <p><b>Vista temporal:</b> resultado intermedio que <b>no se guarda</b> como tabla. Sirve para reutilizar lógica dentro del pipeline sin publicar nada en el catálogo.</p>
+<pre><span class="d">@dp.temporary_view</span>()
+<span class="k">def</span> <span class="f">clientes_activos</span>():
+    <span class="k">return</span> spark.read.table(<span class="s">"raw_data.bronze.cumst"</span>).where(<span class="s">"status = 'ACTIVE'"</span>)</pre>
+    <p>En el taller usamos algo parecido: MVs con <code>private=True</code> en <code>calidad.py</code>. Se calculan dentro del pipeline pero no se publican para los usuarios.</p>
+  </div>
+
+  <table>
+    <tr><th></th><th>Streaming Table</th><th>Materialized View</th><th>Vista temporal</th></tr>
+    <tr><td>Decorador</td><td class="mono">@dp.table + readStream</td><td class="mono">@dp.materialized_view</td><td class="mono">@dp.temporary_view</td></tr>
+    <tr><td>¿Se guarda?</td><td>Sí</td><td>Sí</td><td>No</td></tr>
+    <tr><td>Procesa</td><td>Solo filas nuevas</td><td>Resultado completo</td><td>Al ser usada</td></tr>
+    <tr><td>Ideal para</td><td>Ingesta, Silver NRT</td><td>Gold, agregados, joins</td><td>Lógica intermedia</td></tr>
+  </table>
+
+  <h3>El DAG: cómo SDP decide el orden — haz clic en un nodo</h3>
+  <p>SDP lee tu código, detecta cada <code>spark.read.table(...)</code> y arma un grafo. <span style="background:var(--blue-soft);padding:0 6px;border-radius:4px">Azul</span> = lo que el nodo necesita antes (upstream). <span style="background:var(--teal-soft);padding:0 6px;border-radius:4px">Verde</span> = lo que depende de él (downstream).</p>
+  <div class="dag" id="dag">
+    <svg id="dagSvg"></svg>
+    <div class="col"><h6>Bronze</h6><div class="node br" id="n_cumst">cumst</div><div class="node br" id="n_deal">deal</div><div class="node br" id="n_trans">trans</div></div>
+    <div class="col"><h6>Silver · Hubs / Sats</h6><div class="node mv" id="n_hubc">hub_clientes</div><div class="node mv" id="n_satc">sat_clientes</div><div class="node mv" id="n_satp">sat_prestamos</div><div class="node mv" id="n_sath">sat_transacciones</div><div class="node pv" id="n_fk">fk_checks (private)</div></div>
+    <div class="col"><h6>Silver · Links</h6><div class="node mv" id="n_lcp">link_clientes_prestamos</div><div class="node mv" id="n_lpt">link_prestamos_trans</div></div>
+    <div class="col"><h6>Gold</h6><div class="node gd" id="n_rc">resumen_clientes</div><div class="node gd" id="n_rp">resumen_prestamos</div><div class="node gd" id="n_rt">resumen_transacciones</div><div class="node gd" id="n_kpi">kpi_general</div></div>
+  </div>
+  <div class="callout" id="dagInfo">Selecciona un nodo. (Diagrama simplificado del pipeline Batch.)</div>
+
+  <h3>Ciclo de vida de una ejecución (update)</h3>
+  <p>Cada vez que presionas <b>Run pipeline</b> se crea un <i>update</i> que pasa por estas etapas:</p>
+  <div class="steps" id="steps">
+    <div class="step">QUEUED</div><div class="step">INITIALIZING</div><div class="step">SETTING_UP_TABLES</div><div class="step">RUNNING</div><div class="step">COMPLETED</div>
+  </div>
+  <button class="btn primary" onclick="runSteps()">▶ Simular ejecución</button>
+  <div class="callout" id="stepInfo">Presiona el botón para ver qué pasa en cada etapa.</div>
+
+  <h3>Opciones de ejecución</h3>
+  <details open><summary>Dry run (validar sin ejecutar)</summary><div class="body">Revisa el código, resuelve dependencias y valida que las tablas fuente existan, <b>sin escribir datos</b>. Hazlo siempre antes de la primera ejecución.</div></details>
+  <details><summary>Triggered vs Continuous</summary><div class="body"><b>Triggered:</b> procesa lo pendiente y se apaga (más económico; se programa con Jobs).<br><b>Continuous:</b> queda encendido procesando datos apenas llegan (menor latencia, mayor costo).</div></details>
+  <details><summary>Development vs Production</summary><div class="body"><b>Development:</b> pensado para iterar rápido; no reintenta automáticamente ante errores, así ves el fallo de inmediato.<br><b>Production:</b> reintenta ante fallas transitorias; es el modo para pipelines programados.</div></details>
+  <details><summary>Refresh vs Full refresh</summary><div class="body"><b>Refresh</b> (normal): las STs procesan solo lo nuevo y las MVs se actualizan.<br><b>Full refresh:</b> borra el contenido y checkpoints de las tablas seleccionadas y reprocesa todo desde cero. Úsalo con cuidado: si la fuente ya no tiene datos antiguos, se pierden.</div></details>
+  <details><summary>Parámetros del pipeline (configuración)</summary><div class="body">En <b>Settings → Configuration</b> defines pares llave/valor que el código lee con <code>spark.conf.get()</code>. En el taller así cada ingeniero define su sufijo:
+<pre>SUFFIX = spark.conf.get(<span class="s">"pipelines.suffix"</span>, <span class="s">"dsh"</span>)
+<span class="d">@dp.materialized_view</span>(name=<span class="k">f</span><span class="s">"data_vault.plata.hub_prestamos_{SUFFIX}"</span>)</pre></div></details>
+
+  <div class="quiz" data-quiz>
+    <div class="q">❓ ¿Por qué las tablas Gold del pipeline NRT son Materialized Views y no Streaming Tables?</div>
+    <button class="opt" data-ok="0">Porque las MVs son más rápidas siempre</button>
+    <button class="opt" data-ok="1">Porque hacen agregaciones (groupBy) que necesitan ver todos los datos, no solo los nuevos</button>
+    <button class="opt" data-ok="0">Porque las Streaming Tables no se pueden guardar en ods.gold</button>
+    <div class="fb" data-r="¡Correcto! Un total por mes debe recalcularse con todos los datos; eso lo resuelve una MV." data-w="Piensa en un total: si solo vieras las filas nuevas, el total quedaría incompleto."></div>
+  </div>
+</section>
+
+<!-- ========================= 7. FUNCIONES ========================= -->
+<section id="funciones">
+  <h2>Funciones más importantes de SDP</h2>
+  <p class="lead">Todas viven en el módulo <code>from pyspark import pipelines as dp</code>. Busca por nombre o descripción y haz clic para ver el detalle y un ejemplo.</p>
+  <input class="search" id="fnSearch" placeholder="🔎 Buscar: expect, streaming, cdc, flow...">
+  <div id="fnList"></div>
+
+  <div class="lab">
+    <div class="lab-title"><span class="pill">Simulador</span> Expectations: ¿qué pasa con las filas malas?</div>
+    <p style="margin:0 0 8px">Regla: <code>traamt &gt; 0</code> (el monto debe ser positivo). Elige el tipo de expectation:</p>
+    <button class="btn" onclick="exRun('expect')">@dp.expect</button>
+    <button class="btn" onclick="exRun('drop')">@dp.expect_or_drop</button>
+    <button class="btn" onclick="exRun('fail')">@dp.expect_or_fail</button>
+    <div class="stream-wrap" style="margin-top:10px">
+      <div class="box"><h5>Entrada</h5><div id="exIn"></div></div>
+      <div class="mid">regla<br>➜</div>
+      <div class="box"><h5>Tabla destino</h5><div id="exOut"></div></div>
+    </div>
+    <div class="callout" id="exInfo" style="margin-bottom:0">Selecciona una opción.</div>
+  </div>
+</section>
+
+<!-- ========================= 8. TRANSFORMACIONES ========================= -->
+<section id="transformaciones">
+  <h2>Transformaciones y usos de SDP</h2>
+  <p class="lead">Dentro de cada función de SDP escribes transformaciones normales de PySpark (o SQL). Estas son las más usadas y cómo aparecen en el taller.</p>
+
+  <h3>Transformaciones frecuentes</h3>
+  <div class="tabs" data-tabs="tr">
+    <button class="tab active" data-t="t1">select / alias</button>
+    <button class="tab" data-t="t2">withColumn</button>
+    <button class="tab" data-t="t3">filter / where</button>
+    <button class="tab" data-t="t4">dropDuplicates</button>
+    <button class="tab" data-t="t5">join</button>
+    <button class="tab" data-t="t6">groupBy / agg</button>
+    <button class="tab" data-t="t7">SQL</button>
+  </div>
+  <div class="tabpane active" id="t1"><p>Elegir columnas y renombrarlas. Así creamos las columnas del hub.</p>
+<pre><button class="copy">Copiar</button>spark.read.table(<span class="s">"raw_data.bronze.cumst"</span>).select(
+    F.sha2(F.col(<span class="s">"customer_id"</span>), <span class="d">256</span>).alias(<span class="s">"customer_hk"</span>),  <span class="c"># hash de la llave</span>
+    F.col(<span class="s">"customer_id"</span>).alias(<span class="s">"customer_bk"</span>),             <span class="c"># llave de negocio</span>
+    F.lit(<span class="s">"CUMST"</span>).alias(<span class="s">"record_source"</span>),                <span class="c"># valor fijo</span>
+    F.current_timestamp().alias(<span class="s">"load_ts"</span>),               <span class="c"># fecha de carga</span>
+)</pre></div>
+  <div class="tabpane" id="t2"><p>Agregar o reemplazar una columna calculada. En Gold creamos el mes de la transacción:</p>
+<pre><button class="copy">Copiar</button>df.withColumn(<span class="s">"transaction_month"</span>, F.date_format(<span class="s">"travdm"</span>, <span class="s">"yyyy-MM"</span>))</pre></div>
+  <div class="tabpane" id="t3"><p>Quedarse solo con las filas que cumplen una condición.</p>
+<pre><button class="copy">Copiar</button>df.where(<span class="s">"customer_id IS NOT NULL"</span>)
+df.filter(F.col(<span class="s">"traamt"</span>) > <span class="d">0</span>)</pre></div>
+  <div class="tabpane" id="t4"><p>Eliminar filas repetidas según una o varias columnas. Clave en hubs (una fila por llave) y links (una fila por par de llaves).</p>
+<pre><button class="copy">Copiar</button>hub.dropDuplicates([<span class="s">"customer_bk"</span>])
+link.dropDuplicates([<span class="s">"customer_hk"</span>, <span class="s">"deal_hk"</span>])</pre>
+  <div class="callout warn" style="margin-bottom:0"><b>En streaming</b><code>dropDuplicates</code> recuerda las llaves ya vistas en el estado del stream. Con volúmenes muy grandes conviene combinarlo con <code>withWatermark</code> para limitar cuánto recuerda.</div></div>
+  <div class="tabpane" id="t5"><p>Combinar dos tablas. Tipos más usados:</p>
+  <table><tr><th>Tipo</th><th>Devuelve</th><th>Uso en el taller</th></tr>
+  <tr><td class="mono">inner</td><td>Filas con coincidencia en ambas</td><td>Cruces normales</td></tr>
+  <tr><td class="mono">left</td><td>Todas las de la izquierda + coincidencias</td><td>Enriquecer datos</td></tr>
+  <tr><td class="mono">left_anti</td><td>Filas de la izquierda <b>sin</b> coincidencia</td><td>Detectar huérfanos en <code>calidad.py</code></td></tr></table>
+<pre><button class="copy">Copiar</button><span class="c"># transacciones cuyo cliente NO existe en cumst (huérfanas)</span>
+trans.join(cumst, <span class="s">"customer_id"</span>, <span class="s">"left_anti"</span>)</pre></div>
+  <div class="tabpane" id="t6"><p>Agrupar y calcular métricas. La base de la capa Gold.</p>
+<pre><button class="copy">Copiar</button>sat_prestamos.groupBy(<span class="s">"currency"</span>, <span class="s">"status"</span>).agg(
+    F.count(<span class="s">"*"</span>).alias(<span class="s">"deal_count"</span>),
+    F.sum(<span class="s">"principal_balance"</span>).alias(<span class="s">"principal_balance_total"</span>),
+    F.avg(<span class="s">"interest_rate"</span>).alias(<span class="s">"avg_interest_rate"</span>),
+)</pre></div>
+  <div class="tabpane" id="t7"><p>SDP también acepta archivos <code>.sql</code>. La misma MV de Gold en SQL:</p>
+<pre><button class="copy">Copiar</button><span class="k">CREATE MATERIALIZED VIEW</span> ods.gold.resumen_prestamos_dsh <span class="k">AS</span>
+<span class="k">SELECT</span> currency, status, <span class="f">COUNT</span>(*) <span class="k">AS</span> deal_count, <span class="f">SUM</span>(principal_balance) <span class="k">AS</span> principal_balance_total
+<span class="k">FROM</span> data_vault.plata.sat_prestamos_dsh
+<span class="k">GROUP BY</span> currency, status;
+
+<span class="k">CREATE OR REFRESH STREAMING TABLE</span> data_vault.plata.nrt_hub_clientes_dsh <span class="k">AS</span>
+<span class="k">SELECT</span> sha2(customer_id, <span class="d">256</span>) <span class="k">AS</span> customer_hk, customer_id <span class="k">AS</span> customer_bk
+<span class="k">FROM STREAM</span>(raw_data.bronze.cumst);</pre></div>
+
+  <h3>Patrones de uso de SDP</h3>
+  <div class="grid g2">
+    <div class="card"><div class="ico">🥉➜🥈➜🥇</div><h4>Pipeline Medallion completo</h4><p>Bronze con Auto Loader, Silver con reglas de calidad, Gold con MVs. Un solo pipeline, un solo DAG.</p></div>
+    <div class="card"><div class="ico">🏛️</div><h4>Data Vault</h4><p>Hubs, satélites y links como datasets independientes; SDP los ordena y valida. <b>Es lo que hacemos en el taller.</b></p></div>
+    <div class="card"><div class="ico">🔄</div><h4>CDC y SCD tipo 1/2</h4><p>Con <code>create_auto_cdc_flow</code> aplicas inserts, updates y deletes de un origen, y opcionalmente guardas historial (SCD2).</p></div>
+    <div class="card"><div class="ico">⏱️</div><h4>Near real time</h4><p>Streaming Tables + modo continuo o programado cada pocos minutos.</p></div>
+    <div class="card"><div class="ico">🧹</div><h4>Calidad y cuarentena</h4><p>Expectations para descartar filas malas o detener el pipeline; métricas visibles en la interfaz.</p></div>
+    <div class="card"><div class="ico">🌐</div><h4>Publicación multi-catálogo</h4><p>Con nombres completos en <code>name=</code> un pipeline escribe en varios catálogos (en el taller: <code>data_vault</code> y <code>ods</code>).</p></div>
+  </div>
+
+  <h3>Cómo se ve todo junto en el taller</h3>
+  <table>
+    <tr><th>Archivo</th><th>Qué hace</th><th>Funciones / transformaciones</th></tr>
+    <tr><td class="mono">silver/hubs.py</td><td>3 hubs</td><td class="mono">materialized_view · expect_or_fail · sha2 · dropDuplicates</td></tr>
+    <tr><td class="mono">silver/satellites.py</td><td>3 satélites</td><td class="mono">materialized_view · select · sha2</td></tr>
+    <tr><td class="mono">silver/links.py</td><td>3 links</td><td class="mono">materialized_view · sha2 · dropDuplicates (2 columnas)</td></tr>
+    <tr><td class="mono">silver/calidad.py</td><td>Integridad referencial</td><td class="mono">materialized_view(private=True) · left_anti · expect_or_fail</td></tr>
+    <tr><td class="mono">gold/resumen.py</td><td>4 tablas analíticas</td><td class="mono">materialized_view · groupBy · agg · date_format</td></tr>
+    <tr><td class="mono">nrt/*_nrt.py</td><td>Mismo modelo en streaming</td><td class="mono">table · readStream · read (Gold)</td></tr>
+  </table>
+
+  <h3>Buenas prácticas</h3>
+  <details open><summary>1. Un archivo por tipo de tabla</summary><div class="body">Separa hubs, satélites, links, calidad y Gold. El código es más fácil de leer y revisar.</div></details>
+  <details><summary>2. Nombres completos y parametrizados</summary><div class="body">Usa <code>catálogo.esquema.tabla</code> y lee catálogo, esquema y sufijo con <code>spark.conf.get()</code>. Así el mismo código sirve para cada ingeniero y cada ambiente.</div></details>
+  <details><summary>3. Siempre dry run primero</summary><div class="body">Detecta errores de sintaxis, tablas inexistentes o dependencias circulares sin gastar tiempo ejecutando.</div></details>
+  <details><summary>4. No uses acciones dentro de las funciones</summary><div class="body">Evita <code>.collect()</code>, <code>.count()</code>, <code>.write</code> o <code>display()</code> dentro de un dataset. La función solo debe <b>devolver un DataFrame</b>; SDP se encarga de escribirlo.</div></details>
+  <details><summary>5. Elige bien el tipo de expectation</summary><div class="body"><code>expect</code> para monitorear, <code>expect_or_drop</code> para filtrar filas sucias, <code>expect_or_fail</code> solo para reglas críticas (llaves nulas, integridad).</div></details>
+  <details><summary>6. ST para ingesta, MV para agregados</summary><div class="body">Si la lógica necesita “ver todo” (totales, rankings, joins con tablas que cambian), usa MV.</div></details>
+
+  <div class="callout key"><b>Resumen en una frase</b>SDP te deja enfocarte en <i>qué</i> datos necesita el negocio; Databricks se ocupa del orden, la infraestructura, la incrementalidad y la calidad.</div>
+</section>
+
+</main>
+<footer>Laboratorio BAC SDP · Material de apoyo para ingenieros de datos · Complementa <code>docs/GUIA_SDP_PASO_A_PASO.md</code></footer>
+
+<script>
+/* ---------- Progreso y navegación ---------- */
+const bar=document.getElementById('progress');
+const links=[...document.querySelectorAll('nav a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){
+  const h=document.documentElement; bar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+  let idx=0; secs.forEach((s,i)=>{ if(s.getBoundingClientRect().top<160) idx=i; });
+  links.forEach((a,i)=>{a.classList.toggle('active',i===idx); a.classList.toggle('done',i<idx);});
+}
+window.addEventListener('scroll',onScroll); onScroll();
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('[data-tabs]').forEach(g=>{
+  const tabs=g.querySelectorAll('.tab');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>{x.classList.remove('active'); document.getElementById(x.dataset.t).classList.remove('active');});
+    t.classList.add('active'); document.getElementById(t.dataset.t).classList.add('active');
+  }));
+});
+
+/* ---------- Copiar código ---------- */
+document.querySelectorAll('pre').forEach(p=>{
+  if(!p.querySelector('.copy')){const b=document.createElement('button');b.className='copy';b.textContent='Copiar';p.prepend(b);}
+});
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{
+  const txt=b.parentElement.innerText.replace(/^Copiar\s*/,'');
+  navigator.clipboard.writeText(txt).then(()=>{b.textContent='¡Copiado!';setTimeout(()=>b.textContent='Copiar',1200);});
+}));
+
+/* ---------- Quiz ---------- */
+document.querySelectorAll('[data-quiz]').forEach(q=>{
+  const fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{
+    q.querySelectorAll('.opt').forEach(x=>x.classList.remove('right','wrong'));
+    const ok=o.dataset.ok==='1'; o.classList.add(ok?'right':'wrong');
+    fb.textContent=(ok?'✅ ':'❌ ')+(ok?fb.dataset.r:fb.dataset.w);
+  }));
+});
+
+/* ---------- Medallion ---------- */
+const layerTxt={
+  bronze:'<b>🥉 Bronze — datos crudos</b>Copia fiel de lo que envía el sistema origen, sin limpiar. Se agregan columnas técnicas como <code>ingest_ts</code> y <code>batch_id</code>. Permite reprocesar si algo sale mal.<br><br><b>En el taller:</b> <code>raw_data.bronze.cumst</code> (550), <code>deal</code> (550), <code>trans</code> (1,650).',
+  silver:'<b>🥈 Silver — datos limpios y modelados</b>Datos validados, sin duplicados y organizados con un modelo. Aquí aplicamos reglas de calidad (expectations).<br><br><b>En el taller:</b> modelo Data Vault en <code>data_vault.plata</code>: 3 hubs, 3 satélites y 3 links.',
+  gold:'<b>🥇 Gold — datos listos para negocio</b>Tablas agregadas y fáciles de consultar para dashboards y reportes.<br><br><b>En el taller:</b> <code>ods.gold</code>: resumen de clientes, préstamos, transacciones y KPIs mensuales.'
+};
+document.querySelectorAll('.layer').forEach(l=>l.addEventListener('click',()=>{
+  document.querySelectorAll('.layer').forEach(x=>x.classList.remove('sel')); l.classList.add('sel');
+  const i=document.getElementById('layerInfo'); i.innerHTML=layerTxt[l.dataset.l];
+  i.className='callout '+(l.dataset.l==='gold'?'warn':l.dataset.l==='silver'?'':'key');
+}));
+
+/* ---------- Data Vault diagram ---------- */
+const dvEdges=[['e_hub_cli','e_sat_cli'],['e_hub_pre','e_sat_pre'],['e_hub_trx','e_sat_trx'],
+  ['e_hub_cli','e_lnk_cp'],['e_lnk_cp','e_hub_pre'],['e_hub_pre','e_lnk_pt'],['e_lnk_pt','e_hub_trx'],
+  ['e_hub_cli','e_lnk_ct'],['e_lnk_ct','e_hub_trx']];
+function drawLines(svgId,containerId,edges,activeSet){
+  const svg=document.getElementById(svgId), c=document.getElementById(containerId).getBoundingClientRect();
+  svg.innerHTML='';
+  edges.forEach(([a,b])=>{
+    const A=document.getElementById(a).getBoundingClientRect(), B=document.getElementById(b).getBoundingClientRect();
+    const horiz = svgId==='dagSvg';
+    const x1=horiz?A.right-c.left:A.left+A.width/2-c.left, y1=horiz?A.top+A.height/2-c.top:A.top+A.height/2-c.top;
+    const x2=horiz?B.left-c.left:B.left+B.width/2-c.left, y2=B.top+B.height/2-c.top;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    const mx=(x1+x2)/2;
+    p.setAttribute('d',horiz?`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`:`M${x1},${y1} L${x2},${y2}`);
+    const on=activeSet&&activeSet.has(a+'>'+b);
+    p.setAttribute('stroke',on?'#FF3621':'#C9D2D7'); p.setAttribute('stroke-width',on?3:2); p.setAttribute('fill','none');
+    svg.appendChild(p);
+  });
+}
+const dvData={
+  e_hub_cli:{t:'🔵 hub_clientes_dsh',d:'Una fila por cliente. Solo la llave de negocio, su hash, de dónde vino y cuándo se cargó.',
+    tbl:[['customer_hk','customer_bk','record_source','load_ts'],['a3f9c1…','C00042','CUMST','2026-10-20 13:05'],['7be04d…','C00043','CUMST','2026-10-20 13:05']],
+    code:'@dp.materialized_view(name=f"{SILVER}.hub_clientes_{SUFFIX}")\n@dp.expect_or_fail("pk_no_nulo", "customer_bk IS NOT NULL")\ndef hub_clientes():\n    return (spark.read.table(f"{RAW}.cumst")\n        .select(F.sha2(F.col("customer_id"), 256).alias("customer_hk"),\n                F.col("customer_id").alias("customer_bk"), ...)\n        .dropDuplicates(["customer_bk"]))'},
+  e_hub_pre:{t:'🔵 hub_prestamos_dsh',d:'Una fila por préstamo (deal_id).',tbl:[['deal_hk','deal_bk','record_source','load_ts'],['c81e72…','D00107','DEAL','2026-10-20 13:05']],code:'F.sha2(F.col("deal_id"), 256).alias("deal_hk")\nF.col("deal_id").alias("deal_bk")'},
+  e_hub_trx:{t:'🔵 hub_transacciones_dsh',d:'Una fila por transacción (trx_id).',tbl:[['trx_hk','trx_bk','record_source','load_ts'],['e4da3b…','T005001','TRANS','2026-10-20 13:05']],code:'F.sha2(F.col("trx_id"), 256).alias("trx_hk")'},
+  e_sat_cli:{t:'🟡 sat_clientes_dsh',d:'Atributos del cliente. Si la ciudad cambia, se agrega una nueva versión con otro load_ts: así queda el historial.',
+    tbl:[['customer_hk','full_name','city','status','load_ts'],['a3f9c1…','Ana Mora','San José','ACTIVE','2026-01-10'],['a3f9c1…','Ana Mora','Heredia','ACTIVE','2026-10-20']],
+    code:'spark.read.table(f"{RAW}.cumst").select(\n    F.sha2(F.col("customer_id"), 256).alias("customer_hk"),\n    "first_name", "last_name", "full_name", "country", "city",\n    "email", "phone", "birth_date", "status", ...)'},
+  e_sat_pre:{t:'🟡 sat_prestamos_dsh',d:'Atributos del préstamo: producto, moneda, saldo, tasa, fechas.',tbl:[['deal_hk','product_code','currency','principal_balance','interest_rate'],['c81e72…','HIP','USD','85000.00','7.25']],code:'select(deal_hk, "product_code", "currency", "principal_balance", "interest_rate", ...)'},
+  e_sat_trx:{t:'🟡 sat_transacciones_dsh',d:'Atributos de la transacción: monto, moneda, fecha, código.',tbl:[['trx_hk','traamt','traccy','travdm','tracde'],['e4da3b…','1250.75','CRC','2026-09-14','DEP']],code:'select(trx_hk, "tracde", "traamt", "traccy", "travdm", ...)'},
+  e_lnk_cp:{t:'🟢 link_clientes_prestamos_dsh',d:'Qué cliente es dueño de qué préstamo. Una fila por par único de llaves.',tbl:[['customer_hk','deal_hk','record_source','load_ts'],['a3f9c1…','c81e72…','DEAL','2026-10-20 13:05']],code:'spark.read.table(f"{RAW}.deal").select(\n    F.sha2("customer_id", 256).alias("customer_hk"),\n    F.sha2("deal_id", 256).alias("deal_hk"), ...)\n  .dropDuplicates(["customer_hk", "deal_hk"])'},
+  e_lnk_pt:{t:'🟢 link_prestamos_transacciones_dsh',d:'A qué préstamo pertenece cada transacción.',tbl:[['deal_hk','trx_hk'],['c81e72…','e4da3b…']],code:'lee de raw_data.bronze.trans (deal_id + trx_id)'},
+  e_lnk_ct:{t:'🟢 link_clientes_transacciones_dsh',d:'Qué cliente realizó cada transacción.',tbl:[['customer_hk','trx_hk'],['a3f9c1…','e4da3b…']],code:'lee de raw_data.bronze.trans (customer_id + trx_id)'}
+};
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+document.querySelectorAll('.ent').forEach(e=>e.addEventListener('click',()=>{
+  const id=e.id, rel=new Set([id]), act=new Set();
+  dvEdges.forEach(([a,b])=>{if(a===id||b===id){rel.add(a);rel.add(b);act.add(a+'>'+b);}});
+  document.querySelectorAll('.ent').forEach(x=>{x.classList.toggle('dim',!rel.has(x.id)); x.classList.toggle('sel',x.id===id);});
+  drawLines('dvSvg','dv',dvEdges,act);
+  const d=dvData[id], t=d.tbl;
+  document.getElementById('dvInfo').innerHTML=`<div class="lab-title">${d.t}</div><p style="margin:0 0 6px">${d.d}</p>
+   <table><tr>${t[0].map(h=>`<th class="mono">${h}</th>`).join('')}</tr>${t.slice(1).map(r=>`<tr>${r.map(v=>`<td class="mono">${v}</td>`).join('')}</tr>`).join('')}</table>
+   <pre>${esc(d.code)}</pre>`;
+}));
+
+/* ---------- Descomposición ---------- */
+const decompMap={hub:{c:['trx_id'],cls:'hl-hub',t:'<b>🔵 Hub</b><code>trx_id</code> va a <code>hub_transacciones</code> como llave de negocio, junto con su hash <code>sha2(trx_id)</code>. <i>(customer_id y deal_id también son llaves de sus propios hubs, que se cargan desde cumst y deal.)</i>'},
+  sat:{c:['traamt','traccy','travdm','tracde'],cls:'hl-sat',t:'<b>🟡 Satélite</b>Monto, moneda, fecha y código describen la transacción: van a <code>sat_transacciones</code>, ligados por <code>trx_hk</code>.'},
+  link:{c:['trx_id','customer_id','deal_id'],cls:'hl-link',t:'<b>🟢 Links</b>Los pares de llaves forman relaciones: <code>customer_id + trx_id</code> → link_clientes_transacciones; <code>deal_id + trx_id</code> → link_prestamos_transacciones.'}};
+function decomp(k){
+  document.querySelectorAll('#rawRow td').forEach(td=>td.classList.remove('hl-hub','hl-sat','hl-link'));
+  const info=document.getElementById('decompInfo');
+  if(k==='reset'){info.innerHTML='Elige un tipo de tabla.';return;}
+  const m=decompMap[k]; document.querySelectorAll('#rawRow td').forEach(td=>{if(m.c.includes(td.dataset.c))td.classList.add(m.cls);});
+  info.innerHTML=m.t;
+}
+
+/* ---------- Streaming sim ---------- */
+let st={src:[],cp:0,dst:[],s:0,b:0,n:5000};
+function stRender(){
+  document.getElementById('stSrc').innerHTML=st.src.map((r,i)=>`<div class="row ${i>=st.cp?'new':''}">${r}</div>`).join('')||'<i style="font-size:12px;color:#999">vacía</i>';
+  document.getElementById('stDst').innerHTML=st.dst.map(r=>`<div class="row ok">${r}</div>`).join('')||'<i style="font-size:12px;color:#999">vacía</i>';
+  document.getElementById('stCp').innerHTML=`checkpoint<br>offset = ${st.cp}`;
+  document.getElementById('stS').textContent=st.s; document.getElementById('stB').textContent=st.b;
+}
+function stLog(id,m){const l=document.getElementById(id);l.innerHTML+=`<div>&gt; ${m}</div>`;l.scrollTop=l.scrollHeight;}
+function stAdd(){for(let i=0;i<3;i++){st.n++;st.src.push(`T00${st.n} · ₡${(Math.random()*5000+100).toFixed(0)}`);}stLog('stLog','Llegaron 3 filas nuevas a Bronze (naranja = no procesadas).');stRender();}
+function stRun(){
+  const nuevas=st.src.length-st.cp;
+  st.b+=st.src.length;
+  if(nuevas===0){stLog('stLog','Streaming: no hay filas nuevas, termina en segundos. Batch habría releído '+st.src.length+' filas.');stRender();return;}
+  st.dst.push(...st.src.slice(st.cp)); st.s+=nuevas;
+  stLog('stLog',`Streaming leyó ${nuevas} filas nuevas (offset ${st.cp} → ${st.src.length}). Batch habría leído ${st.src.length}.`);
+  st.cp=st.src.length; stRender();
+}
+function stReset(){st={src:[],cp:0,dst:[],s:0,b:0,n:5000};document.getElementById('stLog').innerHTML='<div>&gt; Esperando datos...</div>';stRender();}
+stRender();
+
+/* ---------- Auto Loader sim ---------- */
+let al={files:[],schema:['trx_id STRING','customer_id STRING','traamt DOUBLE','travdm DATE'],rows:0,n:0};
+function alRender(){
+  document.getElementById('alFiles').innerHTML=al.files.map(f=>`<span class="file ${f.done?'done':'new'}">${f.done?'✅':'🆕'} ${f.name}</span>`).join('')||'<i style="font-size:12px;color:#999">sin archivos</i>';
+  document.getElementById('alSchema').innerHTML=al.schema.map(s=>`<div class="row ${s.includes('segment')?'new':''}">${s}</div>`).join('');
+  document.getElementById('alRows').textContent=al.rows;
+}
+function alAdd(newCol){al.n++;const name=`trans_${String(al.n).padStart(3,'0')}.json`;al.files.push({name,done:false,newCol,rows:Math.floor(Math.random()*40+10)});stLog('alLog',`Llegó ${name}${newCol?' (trae columna nueva "segment")':''}.`);alRender();}
+function alRun(){
+  const pend=al.files.filter(f=>!f.done);
+  if(!pend.length){stLog('alLog','No hay archivos nuevos. Auto Loader no relee los ya procesados.');return;}
+  pend.forEach(f=>{
+    if(f.newCol&&!al.schema.some(s=>s.includes('segment'))){al.schema.push('segment STRING');stLog('alLog',`Esquema evolucionó: se agregó la columna "segment" (addNewColumns).`);}
+    f.done=true; al.rows+=f.rows; stLog('alLog',`Procesado ${f.name}: +${f.rows} filas.`);
+  });
+  stLog('alLog',`Total: ${pend.length} archivo(s) nuevo(s) procesado(s). ${al.files.length-pend.length} ya estaban registrados y se omitieron.`);
+  alRender();
+}
+function alReset(){al={files:[],schema:['trx_id STRING','customer_id STRING','traamt DOUBLE','travdm DATE'],rows:0,n:0};document.getElementById('alLog').innerHTML='<div>&gt; Carpeta vacía. Esperando archivos...</div>';alRender();}
+alRender();
+
+/* ---------- DAG ---------- */
+const dagEdges=[['n_cumst','n_hubc'],['n_cumst','n_satc'],['n_deal','n_satp'],['n_trans','n_sath'],['n_trans','n_fk'],['n_cumst','n_fk'],['n_deal','n_fk'],
+ ['n_deal','n_lcp'],['n_trans','n_lpt'],['n_satc','n_rc'],['n_satp','n_rp'],['n_sath','n_rt'],['n_rt','n_kpi']];
+const dagInfo={n_cumst:'Tabla Bronze de clientes. Fuente de hub, satélite y checks.',n_deal:'Tabla Bronze de préstamos.',n_trans:'Tabla Bronze de transacciones.',
+ n_hubc:'Hub de clientes: lee cumst.',n_satc:'Satélite de clientes: lee cumst y alimenta resumen_clientes.',n_satp:'Satélite de préstamos: alimenta resumen_prestamos.',n_sath:'Satélite de transacciones: alimenta resumen_transacciones.',
+ n_fk:'MVs privadas de calidad: leen trans, cumst y deal. Si encuentran huérfanos, expect_or_fail detiene el pipeline.',n_lcp:'Link cliente-préstamo: lee deal (que trae customer_id y deal_id).',n_lpt:'Link préstamo-transacción: lee trans.',
+ n_rc:'Gold: clientes por país y estado.',n_rp:'Gold: préstamos por moneda y estado.',n_rt:'Gold: transacciones por mes, código y moneda.',n_kpi:'Gold que lee de otra tabla Gold (resumen_transacciones). SDP lo ejecuta después automáticamente.'};
+function dagWalk(start,dir){const out=new Set(),st=[start];while(st.length){const n=st.pop();dagEdges.forEach(([a,b])=>{const nxt=dir==='up'?(b===n?a:null):(a===n?b:null);if(nxt&&!out.has(nxt)){out.add(nxt);st.push(nxt);}});}return out;}
+document.querySelectorAll('.node').forEach(n=>n.addEventListener('click',()=>{
+  const up=dagWalk(n.id,'up'),down=dagWalk(n.id,'down'),act=new Set();
+  dagEdges.forEach(([a,b])=>{if((up.has(a)||a===n.id)&&(up.has(b)||b===n.id))act.add(a+'>'+b);if((down.has(b)||b===n.id)&&(down.has(a)||a===n.id))act.add(a+'>'+b);});
+  document.querySelectorAll('.node').forEach(x=>{x.classList.remove('on','up','down','dim');
+    if(x.id===n.id)x.classList.add('on');else if(up.has(x.id))x.classList.add('up');else if(down.has(x.id))x.classList.add('down');else x.classList.add('dim');});
+  drawLines('dagSvg','dag',dagEdges,act);
+  document.getElementById('dagInfo').innerHTML=`<b>${n.textContent}</b>${dagInfo[n.id]}<br><small>Necesita antes: ${up.size?[...up].map(i=>document.getElementById(i).textContent).join(', '):'nada (es fuente)'} · Dependen de él: ${down.size?[...down].map(i=>document.getElementById(i).textContent).join(', '):'nadie'}</small>`;
+}));
+
+/* ---------- Update lifecycle ---------- */
+const stepTxt=['<b>QUEUED</b>El update está en cola esperando recursos.','<b>INITIALIZING</b>Se levanta el compute serverless y se lee el código de los archivos.','<b>SETTING_UP_TABLES</b>SDP analiza el código, arma el DAG y crea o valida las tablas en Unity Catalog.','<b>RUNNING</b>Se ejecutan los datasets en el orden del DAG, en paralelo cuando no dependen entre sí. Se evalúan las expectations.','<b>COMPLETED</b>¡Listo! Revisa el DAG, las filas escritas y las métricas de calidad. (Si algo falla verás FAILED con el detalle en el event log.)'];
+let stepTimer;
+function runSteps(){
+  clearInterval(stepTimer); const el=[...document.querySelectorAll('#steps .step')]; let i=0;
+  const show=()=>{el.forEach((s,j)=>{s.classList.toggle('on',j===i);s.classList.toggle('past',j<i);});document.getElementById('stepInfo').innerHTML=stepTxt[i];i++;if(i>=el.length)clearInterval(stepTimer);};
+  show(); stepTimer=setInterval(show,1600);
+}
+
+/* ---------- Funciones ---------- */
+const fns=[
+ {n:'@dp.table',cat:'Dataset',col:'b-b',d:'Define una <b>Streaming Table</b> cuando la función devuelve un DataFrame de streaming (<code>spark.readStream</code>). Se llena de forma incremental.',p:'name, comment, partition_cols / cluster_by, table_properties',c:'@dp.table(name="data_vault.plata.nrt_hub_clientes_dsh", comment="Hub NRT")\ndef nrt_hub_clientes():\n    return spark.readStream.table("raw_data.bronze.cumst")'},
+ {n:'@dp.materialized_view',cat:'Dataset',col:'b-b',d:'Define una <b>Materialized View</b>: el resultado siempre refleja la consulta completa. Ideal para Gold y agregados.',p:'name, comment, private, cluster_by, table_properties',c:'@dp.materialized_view(name="ods.gold.kpi_general_dsh")\ndef kpi_general():\n    return spark.read.table("ods.gold.resumen_transacciones_dsh").groupBy("transaction_month").agg(...)'},
+ {n:'@dp.temporary_view',cat:'Dataset',col:'b-b',d:'Vista intermedia que existe solo durante la ejecución del pipeline. No se publica en el catálogo.',p:'name, comment',c:'@dp.temporary_view()\ndef trans_validas():\n    return spark.read.table("raw_data.bronze.trans").where("traamt > 0")'},
+ {n:'private=True',cat:'Parámetro',col:'b-p',d:'Parámetro de <code>@dp.materialized_view</code> / <code>@dp.table</code>. El dataset se calcula pero queda oculto para los usuarios fuera del pipeline. Lo usamos en <code>calidad.py</code>.',p:'—',c:'@dp.materialized_view(private=True)\n@dp.expect_or_fail("fk_valida", "tiene_cliente")\ndef fk_trans_customer_check(): ...'},
+ {n:'@dp.expect',cat:'Calidad',col:'b-t',d:'Registra cuántas filas <b>no cumplen</b> la regla, pero <b>las deja pasar</b>. Para monitorear.',p:'nombre, condición SQL',c:'@dp.expect("email_valido", "email LIKE \'%@%\'")'},
+ {n:'@dp.expect_or_drop',cat:'Calidad',col:'b-t',d:'Las filas que no cumplen se <b>descartan</b> y no llegan a la tabla. El conteo de descartadas queda en las métricas.',p:'nombre, condición SQL',c:'@dp.expect_or_drop("monto_positivo", "traamt > 0")'},
+ {n:'@dp.expect_or_fail',cat:'Calidad',col:'b-t',d:'Si <b>una sola</b> fila no cumple, el update <b>falla</b> y no se escribe nada. Para reglas críticas.',p:'nombre, condición SQL',c:'@dp.expect_or_fail("pk_no_nulo", "customer_bk IS NOT NULL")'},
+ {n:'@dp.expect_all / _or_drop / _or_fail',cat:'Calidad',col:'b-t',d:'Igual que las anteriores pero recibe un <b>diccionario</b> con varias reglas a la vez.',p:'dict {nombre: condición}',c:'reglas = {"pk": "trx_id IS NOT NULL", "monto": "traamt > 0"}\n@dp.expect_all_or_drop(reglas)'},
+ {n:'dp.create_streaming_table',cat:'Flujos',col:'b-o',d:'Crea una Streaming Table <b>vacía</b> que luego se llena con uno o varios flujos (append_flow o auto CDC).',p:'name, comment, schema, ...',c:'dp.create_streaming_table("data_vault.plata.trans_unificadas")'},
+ {n:'@dp.append_flow',cat:'Flujos',col:'b-o',d:'Agrega datos a una Streaming Table desde <b>varias fuentes</b>. Ej.: transacciones de dos sistemas a una misma tabla.',p:'target, name',c:'@dp.append_flow(target="data_vault.plata.trans_unificadas")\ndef desde_as400():\n    return spark.readStream.table("raw_data.bronze.trans")'},
+ {n:'dp.create_auto_cdc_flow',cat:'Flujos',col:'b-o',d:'Aplica cambios (insert/update/delete) de una fuente CDC a una tabla destino, ordenando por una columna de secuencia. Soporta <b>SCD tipo 1</b> (solo último valor) y <b>tipo 2</b> (historial). Antes se llamaba <code>apply_changes</code>.',p:'target, source, keys, sequence_by, stored_as_scd_type, apply_as_deletes',c:'dp.create_streaming_table("data_vault.plata.clientes_scd2")\ndp.create_auto_cdc_flow(\n    target="data_vault.plata.clientes_scd2",\n    source="cumst_cambios",\n    keys=["customer_id"],\n    sequence_by="ingest_ts",\n    stored_as_scd_type=2,\n)'},
+ {n:'spark.read.table / spark.readStream.table',cat:'Lectura',col:'b-p',d:'Leer en <b>batch</b> (todo) o en <b>streaming</b> (solo lo nuevo). Lo que elijas define el tipo de procesamiento del dataset.',p:'nombre de tabla',c:'spark.read.table("data_vault.plata.sat_clientes_dsh")      # batch\nspark.readStream.table("raw_data.bronze.cumst")          # streaming'},
+ {n:'spark.readStream.format("cloudFiles")',cat:'Lectura',col:'b-p',d:'<b>Auto Loader</b>: lectura incremental de archivos desde un Volume o almacenamiento en la nube.',p:'cloudFiles.format, cloudFiles.schemaHints, ...',c:'spark.readStream.format("cloudFiles")\n  .option("cloudFiles.format", "csv")\n  .load("/Volumes/raw_data/bronze/landing/cumst/")'},
+ {n:'spark.conf.get',cat:'Configuración',col:'b-p',d:'Lee parámetros definidos en <b>Settings → Configuration</b> del pipeline. Permite código reutilizable entre ingenieros y ambientes.',p:'llave, valor por defecto',c:'SUFFIX = spark.conf.get("pipelines.suffix", "dsh")\nSILVER = spark.conf.get("pipelines.silver_catalog", "data_vault")'}
+];
+function fnRender(q=''){
+  q=q.toLowerCase();
+  document.getElementById('fnList').innerHTML=fns.filter(f=>(f.n+f.d+f.cat).toLowerCase().includes(q)).map(f=>`
+   <div class="fn"><div class="fn-h"><code>${f.n}</code><span class="cat badge ${f.col}">${f.cat}</span></div>
+   <div class="fn-b"><p style="margin:0 0 6px">${f.d}</p><p style="margin:0;font-size:13px;color:var(--gray)"><b>Parámetros comunes:</b> ${f.p}</p><pre>${esc(f.c)}</pre></div></div>`).join('')||'<p>Sin resultados.</p>';
+  document.querySelectorAll('.fn-h').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+}
+document.getElementById('fnSearch').addEventListener('input',e=>fnRender(e.target.value)); fnRender();
+
+/* ---------- Expectations sim ---------- */
+const exRows=[['T001',1500],['T002',320],['T003',-50],['T004',980],['T005',0]];
+document.getElementById('exIn').innerHTML=exRows.map(r=>`<div class="row ${r[1]>0?'':'bad'}" style="text-decoration:none">${r[0]} · traamt=${r[1]}</div>`).join('');
+function exRun(m){
+  const out=document.getElementById('exOut'), info=document.getElementById('exInfo'); const bad=exRows.filter(r=>r[1]<=0).length;
+  if(m==='expect'){out.innerHTML=exRows.map(r=>`<div class="row ${r[1]>0?'ok':'new'}">${r[0]} · ${r[1]}${r[1]>0?'':' ⚠️'}</div>`).join('');info.className='callout';info.innerHTML=`<b>@dp.expect — registrar</b>Las 5 filas se escriben. En las métricas verás <b>${bad} fallos</b> de la regla. Útil para monitorear sin frenar el proceso.`;}
+  if(m==='drop'){out.innerHTML=exRows.filter(r=>r[1]>0).map(r=>`<div class="row ok">${r[0]} · ${r[1]}</div>`).join('');info.className='callout tip';info.innerHTML=`<b>@dp.expect_or_drop — descartar</b>Se escriben ${exRows.length-bad} filas; las ${bad} inválidas se descartan y se cuentan en las métricas.`;}
+  if(m==='fail'){out.innerHTML='<div class="row bad" style="text-decoration:none">❌ UPDATE FAILED — no se escribió nada</div>';info.className='callout warn';info.innerHTML=`<b>@dp.expect_or_fail — detener</b>Como hay ${bad} filas inválidas, el update falla y la tabla queda como estaba. Úsalo para reglas críticas como llaves nulas o integridad referencial.`;}
+}
+
+/* ---------- Redibujar líneas ---------- */
+function redraw(){drawLines('dvSvg','dv',dvEdges,new Set());drawLines('dagSvg','dag',dagEdges,new Set());}
+window.addEventListener('load',redraw); window.addEventListener('resize',redraw);
+</script>
+</body>
+</html>
