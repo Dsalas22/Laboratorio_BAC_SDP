@@ -537,6 +537,9 @@ Este archivo crea **MVs privadas** que validan que las foreign keys de `trans` e
 # Silver — Verificaciones de integridad referencial
 # MVs privadas que validan FKs de trans hacia cumst y deal.
 # Si hay registros huérfanos, el pipeline falla.
+# refresh_policy="full": se recalculan completas en cada ejecución. Un anti-join refrescado
+# de forma incremental puede reportar huérfanos falsos cuando trans y cumst/deal reciben
+# filas nuevas en el mismo lote (comprobado en el ensayo del 21-oct).
 
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
@@ -545,7 +548,7 @@ from pyspark.sql import functions as F
 RAW = spark.conf.get("pipelines.raw_catalog", "raw_data") + "." + spark.conf.get("pipelines.raw_schema", "bronze")
 
 
-@dp.materialized_view(private=True)
+@dp.materialized_view(private=True, refresh_policy="full")
 @dp.expect_or_fail("fk_trans_customer_valida", "tiene_cliente")
 def fk_trans_customer_check():
     """Verifica que todo customer_id en trans exista en cumst."""
@@ -561,7 +564,7 @@ def fk_trans_customer_check():
     )
 
 
-@dp.materialized_view(private=True)
+@dp.materialized_view(private=True, refresh_policy="full")
 @dp.expect_or_fail("fk_trans_deal_valida", "tiene_prestamo")
 def fk_trans_deal_check():
     """Verifica que todo deal_id en trans exista en deal."""
@@ -576,6 +579,9 @@ def fk_trans_deal_check():
         .select("deal_id", F.lit(False).alias("tiene_prestamo"))
     )
 ```
+
+> **¿Por qué `refresh_policy="full"`?** Por defecto una MV se refresca de forma *incremental* (solo procesa lo que cambió). En un anti-join, cuando `trans` y `cumst`/`deal` reciben filas nuevas al mismo tiempo, el refresco incremental puede reportar **huérfanos falsos** y detener el pipeline. Como estas verificaciones son pequeñas, conviene recalcularlas completas en cada ejecución.
+
 
 ### Conceptos nuevos en este archivo
 
